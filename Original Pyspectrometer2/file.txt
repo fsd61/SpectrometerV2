@@ -1,0 +1,35 @@
+
+RPi3B:~/PySpectrometer2>python3 src/PySpectrometer2-Picam2-v1.0.py 
+[18:13:25.577631523] [4228]  INFO Camera camera_manager.cpp:340 libcamera v0.7.0+rpt20260205
+[18:13:25.796704227] [4231]  INFO IPAProxy ipa_proxy.cpp:180 Using tuning file /usr/share/libcamera/ipa/rpi/vc4/imx219.json
+[18:13:25.825888577] [4231]  INFO Camera camera_manager.cpp:223 Adding camera '/base/soc/i2c0mux/i2c@1/imx219@10' for pipeline handler rpi/vc4
+[18:13:25.826156439] [4231]  INFO RPI vc4.cpp:445 Registered camera /base/soc/i2c0mux/i2c@1/imx219@10 to Unicam device /dev/media3 and ISP device /dev/media0
+[18:13:25.826326177] [4231]  INFO RPI pipeline_base.cpp:1117 Using configuration file '/usr/share/libcamera/pipeline/rpi/vc4/rpi_apps.yaml'
+[18:13:25.861858695] [4228]  INFO Camera camera.cpp:1215 configuring streams: (0) 800x600-RGB888/SMPTE170M/Rec709/None/Full (1) 1640x1232-SBGGR10_CSI2P/RAW
+[18:13:25.862949726] [4231]  INFO RPI vc4.cpp:620 Sensor: /base/soc/i2c0mux/i2c@1/imx219@10 - Selected sensor format: 1640x1232-SBGGR10_1X10/RAW - Selected unicam format: 1640x1232-pBAA/RAW
+QStandardPaths: runtime directory '/run/user/1000' is not owned by UID 0, but a directory permissions 0700 owned by UID 1000 GID 1000
+Loading calibration data...
+Loading of Calibration data failed (missing caldata.txt or corrupted data!
+Loading placeholder data...
+You MUST perform a Calibration to use this software!
+
+
+Calculating second order polynomial...
+           2
+3.125e-05 x + 0.4375 x + 380
+Generating Wavelength Data!
+
+
+Done! Note that calibration with only 3 wavelengths will not be accurate!
+Traceback (most recent call last):
+  File "/home/RPi3B/PySpectrometer2/src/PySpectrometer2-Picam2-v1.0.py", line 261, in <module>
+    intensity = savitzky_golay(intensity,17,savpoly)
+  File "/home/RPi3B/PySpectrometer2/src/specFunctions.py", line 138, in savitzky_golay
+    b = np.mat([[k**i for i in order_range] for k in range(-half_window, half_window+1)])
+        ^^^^^^
+  File "/usr/lib/python3/dist-packages/numpy/__init__.py", line 400, in __getattr__
+    raise AttributeError(
+    ...<3 lines>...
+    )
+AttributeError: `np.mat` was removed in the NumPy 2.0 release. Use `np.asmatrix` instead.
+

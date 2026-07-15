@@ -1,0 +1,30 @@
+--- PySpectrometer2.py
++++ PySpectrometer2.py
+@@ -1,5 +1,5 @@
+ # ==============================================================================
+-# PySpectrometer2 - Horizontal Spectrum Extraction
++# PySpectrometer2 - Vertical Row Slice Modification
+ # ==============================================================================
+ 
+ # Locate the primary frame processing loop where the 1D intensity profile 
+@@ -7,10 +7,18 @@
+ 
+-        # Legacy horizontal row-averaging over 3 pixels across the entire width:
+-        # sample_slice = frame[y_center : y_center + 3, 0:width]
+-        # profile_1d = np.mean(sample_slice, axis=0)
++        # Rigorous Vertical Row Slice Extraction
++        # Define the column bounding box parameters for vertical dispersion
++        x_center = 400        # Define the center target column index
++        col_width = 5         # Column aperture width for signal averaging (SNR scaling)
++        
++        # Slice along the entire vertical height, bounded by the column width
++        vertical_slice = gray_frame[:, x_center - (col_width // 2) : x_center + (col_width // 2) + 1]
++        
++        # Average horizontally across the selected columns (axis=1) 
++        # to produce a pure 1D intensity array corresponding to each vertical row (Y-axis)
++        profile_1d = np.mean(vertical_slice, axis=1)
+ 
+ # ==============================================================================
+ # Note: When drawing or plotting, ensure your calibration functions and graphs 
+ # now reference the sensor height (Y-axis dimensions) rather than width.
+ # ==============================================================================
