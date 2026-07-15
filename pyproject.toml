@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyspectrometer2"
+version = "2.0.0.dev0"
+description = "Modular, cross-platform scientific spectrometer application."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "PySpectrometer2 Project" }]
+dependencies = []
+
+[project.optional-dependencies]
+# Hardware/scientific deps are added as each migration phase lands them.
+dev = ["pytest>=7"]
+
+[project.scripts]
+pyspectrometer2 = "pyspectrometer2.app.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
