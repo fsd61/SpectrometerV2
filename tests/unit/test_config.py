@@ -2,8 +2,8 @@
 
 import pytest
 
-from pyspectrometer2.config import load_config
-from pyspectrometer2.errors import ConfigError
+from config import load_config
+from errors import ConfigError
 
 DEFAULT_INI = "config/default.ini"
 

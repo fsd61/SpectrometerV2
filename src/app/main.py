@@ -11,10 +11,10 @@ import logging
 import sys
 from typing import Optional, Sequence
 
-from ..config import load_config
-from ..config.schema import SCHEMA
-from ..errors import ConfigError, PySpectrometerError
-from ..logging_setup import setup_logging
+from config import load_config
+from config.schema import SCHEMA
+from errors import ConfigError, PySpectrometerError
+from logging_setup import setup_logging
 from .cli import build_parser
 
 _VERBOSITY = ["INFO", "DEBUG"]  # index by --verbose count (capped)

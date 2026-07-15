@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from ..processing.spectrum import Spectrum
+from processing.spectrum import Spectrum
 
 
 @dataclass

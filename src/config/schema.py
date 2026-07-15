@@ -3,7 +3,7 @@
 The schema is the single source of truth for configuration: the set of valid
 sections and keys, their types, defaults, permitted values/ranges, and human
 documentation. The loader validates INI input against this schema and the
-docs are rendered by ``pyspectrometer2 describe-config``.
+docs are rendered by ``spectrometerv2 describe-config``.
 """
 
 from __future__ import annotations

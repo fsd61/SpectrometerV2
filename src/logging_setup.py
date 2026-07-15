@@ -2,7 +2,7 @@
 
 Provides structured application logging with a dedicated logs directory and
 size-based rotation. All modules obtain loggers via ``logging.getLogger`` under
-the ``pyspectrometer2`` namespace; this module configures the handlers once at
+the ``spectrometerv2`` namespace; this module configures the handlers once at
 startup.
 """
 
@@ -13,8 +13,8 @@ import logging.handlers
 import sys
 from pathlib import Path
 
-ROOT_LOGGER_NAME = "pyspectrometer2"
-LOG_FILENAME = "pyspectrometer2.log"
+ROOT_LOGGER_NAME = "spectrometerv2"
+LOG_FILENAME = "spectrometerv2.log"
 
 # Structured, fixed-field format: timestamp, level, logger, message.
 _FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"

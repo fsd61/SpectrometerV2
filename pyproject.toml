@@ -3,13 +3,13 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyspectrometer2"
+name = "spectrometerv2"
 version = "2.0.0.dev0"
 description = "Modular, cross-platform scientific spectrometer application."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "GPL-3.0-or-later" }
-authors = [{ name = "PySpectrometer2 Project" }]
+authors = [{ name = "Frank DiGennaro" }]
 dependencies = []
 
 [project.optional-dependencies]
@@ -17,7 +17,16 @@ dependencies = []
 dev = ["pytest>=7"]
 
 [project.scripts]
-pyspectrometer2 = "pyspectrometer2.app.main:main"
+spectrometerv2 = "app.main:main"
+
+# Flat src layout: top-level packages (app, config, cameras, ...) plus a couple
+# of loose modules (errors, logging_setup) live directly under src/.
+# NOTE: because these are generic top-level names, installing into a shared
+# environment can shadow stdlib/third-party modules (notably `platform`).
+# Revisit before publishing installable artifacts.
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["errors", "logging_setup"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -18,7 +18,7 @@ import configparser
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
-from ..errors import ConfigError
+from errors import ConfigError
 from .schema import SCHEMA, Field
 
 _BOOL_TRUE = {"1", "true", "yes", "on"}

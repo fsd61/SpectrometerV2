@@ -2,7 +2,7 @@
 
 import pytest
 
-from pyspectrometer2.processing import Spectrum
+from processing import Spectrum
 
 
 def test_length_and_metadata():

@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import argparse
 
-from .. import __version__
+from . import __version__
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pyspectrometer2",
-        description="PySpectrometer2 — cross-platform scientific spectrometer.",
+        prog="spectrometerv2",
+        description="SpectrometerV2 — cross-platform scientific spectrometer.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 

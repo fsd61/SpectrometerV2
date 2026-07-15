@@ -2,7 +2,7 @@
 
 import logging
 
-from pyspectrometer2.logging_setup import setup_logging
+from logging_setup import setup_logging
 
 
 def test_setup_creates_log_dir_and_handlers(tmp_path):
@@ -21,7 +21,7 @@ def test_logging_writes_to_file(tmp_path):
     logger.info("hello regression")
     for h in logger.handlers:
         h.flush()
-    log_file = log_dir / "pyspectrometer2.log"
+    log_file = log_dir / "spectrometerv2.log"
     assert log_file.exists()
     assert "hello regression" in log_file.read_text(encoding="utf-8")
 

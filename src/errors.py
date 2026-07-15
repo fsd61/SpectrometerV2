@@ -1,4 +1,4 @@
-"""Exception hierarchy for PySpectrometer2.
+"""Exception hierarchy for SpectrometerV2.
 
 A single base exception lets callers catch any application-level failure while
 still allowing precise handling of specific failure classes. Supports the
@@ -7,7 +7,7 @@ graceful-failure requirements (ERR-001, ERR-002, CFG-005).
 
 
 class PySpectrometerError(Exception):
-    """Base class for all PySpectrometer2 application errors."""
+    """Base class for all SpectrometerV2 application errors."""
 
 
 class ConfigError(PySpectrometerError):

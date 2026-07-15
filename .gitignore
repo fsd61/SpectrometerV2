@@ -24,3 +24,6 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+
+# Leftover empty wrapper dir (mount blocks deletion; safe to remove from Windows)
+.pyspectrometer2_emptied/
