@@ -38,7 +38,6 @@ def half_max_fwhm(y: Sequence[float], peak_index: int, baseline: Optional[float]
         raise ValueError("peak is not above the baseline")
     half = baseline + (peak_val - baseline) / 2.0
 
-    # walk left to the first sample at/below the half-max, then interpolate
     left = peak_index
     while left > 0 and y[left] > half:
         left -= 1
@@ -54,24 +53,30 @@ def half_max_fwhm(y: Sequence[float], peak_index: int, baseline: Optional[float]
 
 
 def gaussian_fit(y: Sequence[float], peak_index: int, window: int = 10,
-                 baseline: Optional[float] = None) -> GaussianFit:
+                 baseline: Optional[float] = None, min_fraction: float = 0.1) -> GaussianFit:
     """Estimate a Gaussian's center/amplitude/sigma/FWHM near ``peak_index``.
 
     Uses a log-parabola fit: for a Gaussian, ``ln(y - baseline)`` is a parabola,
-    so a quadratic ``polyfit`` recovers the parameters without SciPy.
+    so a quadratic ``polyfit`` recovers the parameters without SciPy. Only the
+    line *core* is fitted — samples within ``window`` whose height exceeds
+    ``min_fraction`` of the peak height — which keeps narrow lines accurate and
+    rejects baseline/noise and neighboring lines.
     """
     y = np.asarray(y, dtype=float)
     n = len(y)
     peak_index = int(peak_index)
     if baseline is None:
         baseline = float(np.min(y))
+    peak_amp = float(y[peak_index]) - baseline
+    if peak_amp <= 0:
+        raise ValueError("peak is not above the baseline")
     lo, hi = max(0, peak_index - window), min(n, peak_index + window + 1)
     xs = np.arange(lo, hi, dtype=float)
     ys = y[lo:hi] - baseline
-    mask = ys > 0
+    mask = ys > max(0.0, min_fraction * peak_amp)
     xs, ys = xs[mask], ys[mask]
     if len(xs) < 3:
-        raise ValueError("insufficient positive samples for a Gaussian fit")
+        raise ValueError("insufficient core samples for a Gaussian fit")
     a, b, c = np.polyfit(xs, np.log(ys), 2)
     if a >= 0:
         raise ValueError("fitted parabola is not concave (not a peak)")

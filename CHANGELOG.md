@@ -6,6 +6,23 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 4: synthetic spectrum generator
+**Added**
+- `src/synthetic/generator.py` — production generator (SYN-001…009): wavelength
+  axis (min/max/interval), multi-line Gaussian with global or per-line FWHM,
+  amplitudes, baseline level + slope, SNR-based deterministic noise (seed), and
+  full generation metadata; outputs the shared `Spectrum` and flows through the
+  same `analyze` pipeline (SYN-008). Lorentzian/Voigt raise `NotImplementedError`
+  (SYN-007, future). `SyntheticSpectrumSpec.from_config` ties into `[synthetic]`.
+- Unit tests (reproducibility, axis, baseline/slope, per-line FWHM, SNR,
+  metadata, error cases) and an integration test (generate → analyze recovers
+  wavelengths, FWHM, and SNR).
+
+**Changed**
+- `analysis.gaussian_fit` now fits only the line *core* (`min_fraction`) for
+  accurate narrow-line FWHM.
+- Suite now **70 tests**.
+
 ### 2026-07-16 — Phase 3: FWHM, SNR, Gaussian fit (scientific core extracted)
 **Added**
 - `src/analysis/measurements.py` — `half_max_fwhm`, `gaussian_fit`
