@@ -6,6 +6,19 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 5: camera abstraction + acquisition
+**Added**
+- `src/cameras/`: `SyntheticCameraAdapter` (hardware-free; frames encode a
+  pixel-space spectrum), `UsbCameraAdapter` (lazy `cv2`, cross-platform
+  open-by-index — fixes the baseline's Linux-only V4L path, PLAT-002),
+  `Picamera2Adapter` (lazy import, PLAT-005), and a `create_camera` /
+  `create_camera_from_config` factory selecting by backend.
+- `src/acquisition/service.py`: `acquire_spectrum(camera)` → `extract_spectrum`
+  with frame metadata; depends only on the camera contract.
+- Tests: synthetic-camera unit, camera-contract conformance for all three
+  adapters, factory, and an integration test (synthetic camera → acquire →
+  extract → analyze recovers the lines, hardware-free). Suite now **86 tests**.
+
 ### 2026-07-16 — Docs synced for Phase 4
 **Changed**
 - Requirements → **Rev 1.4** (SYN-001…006, 008, 009 *Implemented*; SYN-007
