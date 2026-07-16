@@ -7,8 +7,8 @@ Modular, cross-platform scientific spectrometer application.
 SpectrometerV2 is a ground-up modernization built around **one platform-neutral
 scientific core**, with all OS- and camera-hardware specifics behind adapters.
 Linux, Windows, and Raspberry Pi are equal first-class platforms. See the
-Rev 1.1 engineering documents in the repository root for the governing
-Requirements, Architecture & Design, and Migration Plan.
+Rev 1.2 engineering documents in `Docs/` for the governing Requirements,
+Architecture & Design, and Migration Plan.
 
 ## Acknowledgements
 
@@ -36,6 +36,7 @@ src/                  Application sources (flat layout — no wrapper package)
   logging_setup.py  structured rotating logging        (LOG-*)
 config/         default.ini + profiles/                (externalized config)
 tests/          unit / integration / regression / hardware / platform
+Docs/           Rev 1.2 engineering documents + reference papers
 Original_Pyspectrometer2/   Preserved upstream baseline (Les Wright)
 Patch_-_Vertical_Slice/     Preserved in-progress patch material
 Patch_-_Wtx_+_SA/           Preserved in-progress patch material
@@ -62,8 +63,4 @@ spectrometerv2 describe-config
 spectrometerv2 --config config/default.ini --profile lab --set synthetic.seed=7 validate-config
 
 # Run from source without installing
-PYTHONPATH=src python -m app validate-config
-
-# Run the test suite
-pytest
-```
+PYTHONPATH=src python -m 

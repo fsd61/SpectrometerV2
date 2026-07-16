@@ -1,0 +1,66 @@
+# Changelog
+
+All notable changes to **SpectrometerV2** are recorded here, one entry per
+development step. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
+Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
+
+## [Unreleased] — branch `sprint-1-skeleton`
+
+### 2026-07-16 — Engineering docs: implementation-status annotations (Rev 1.2)
+**Changed**
+- Bumped the three engineering documents to **Rev 1.2** (revision block + history
+  row) and renamed the files to `..._Rev_1.2.docx`.
+- Requirements: added inline `[Implemented]` / `[In Progress]` / `[Planned]`
+  tags to all 40 requirements, plus a status legend.
+- Migration Plan: tagged the 9 phases, 7 gates, and the 7 first-sprint checklist
+  items.
+- Architecture: tagged the 11 component-model entries and added a note on the
+  implemented flattened `src/` layout.
+
+**Added**
+- `CHANGELOG.md` (this file), maintained per development step.
+
+### 2026-07-16 — Repository organization (`cc48382`)
+**Changed**
+- Moved the three engineering documents and `Spectrometer_-_Grafana.png` into
+  `Docs/`; README points at `Docs/`.
+
+**Added**
+- `Docs/Journal.Mag.Res.96.pdf` (reference paper).
+
+### 2026-07-15 — Project rename & package flatten (`2991250`)
+**Changed**
+- Flattened `src/pyspectrometer2/*` directly into `src/` (no wrapper package);
+  `app/` carries `__version__` and a `__main__` (`python -m app`).
+- Renamed identifiers `pyspectrometer2` → `spectrometerv2` (CLI command, logger,
+  log filename, console entry point); display name → **SpectrometerV2**.
+- Replaced spaces with underscores in all tracked file/directory names.
+- Updated `pyproject.toml` and README; added upstream credit to Les Wright's
+  PySpectrometer2.
+
+**Known issue**
+- Flat layout: top-level `platform` shadows the standard-library module when
+  `src` is on `sys.path`. Harmless in current source/test runs; to be resolved
+  before installable packaging.
+
+### 2026-07-15 — Sprint 1 skeleton (`abb8341`)
+**Added**
+- Package tree under `src/` per Architecture §7 (app, config, platform, cameras,
+  acquisition, processing, calibration, analysis, synthetic, data, ui) + a
+  five-way `tests/` tree.
+- Configuration service — documented INI schema, profiles, `--set` overrides,
+  and validation with graceful termination (CFG-001…CFG-006).
+- Logging service — structured rotating file logs + optional console
+  (LOG-001, LOG-002, ERR-002).
+- CLI entry point (CLI-001…CLI-003; CLI-004 diagnostics stubbed).
+- Shared `Spectrum` data object, camera contract + adapter stubs, and a
+  synthetic-generator spec stub.
+- `pyproject.toml`, `.gitignore`, README. 16 unit tests passing.
+- Baseline tag `baseline-v1.0`; feature branch `sprint-1-skeleton`.
+
+### 2026-07-15 — Baseline (`bca9f67`, `main`)
+- Initial commit: upstream PySpectrometer2 (Les Wright), preserved patch
+  material, and the Rev 1.1 engineering documents.
+
+---
+*Maintained by the SpectrometerV2 project. Update this file with every step.*
