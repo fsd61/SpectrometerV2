@@ -6,6 +6,13 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Docs synced for Phase 8 groundwork
+**Changed**
+- Requirements → **Rev 1.7** (TEST-001 and ACC-001 → *In Progress*).
+- Migration Plan → **Rev 1.8** (Phase 8 and Gate F → *In Progress*).
+- Architecture → **Rev 1.9** (platform acceptance tests → *In Progress*).
+- README Status updated (112 tests, installable).
+
 ### 2026-07-16 — Phase 8 groundwork: packaging, install docs, acceptance test
 **Added**
 - `INSTALL.md` — Linux / Windows / Raspberry Pi prerequisites and quickstart

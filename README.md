@@ -55,8 +55,8 @@ test-camera / verify-hardware / check-calibration), saving results through a
 pluggable persistence sink (Phase 6).
 
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
-behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5 & 6). Test suite:
-108 tests.
+behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
+112 tests, installable via `pip install -e .`.
 
 ## Usage
 
