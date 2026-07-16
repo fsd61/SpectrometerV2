@@ -47,12 +47,12 @@ Patch_-_Wtx_+_SA/           Preserved in-progress patch material
 Working today: configuration and logging services (CLI), and an extracted,
 golden-verified scientific core — spectrum extraction, wavelength calibration,
 Savitzky–Golay smoothing, peak detection, Gaussian line fitting, FWHM, and SNR —
-with an end-to-end analysis pipeline. Camera adapters and the synthetic generator
-remain stubs (Migration Plan Phases 4–5).
+with an end-to-end analysis pipeline, plus a reproducible synthetic spectrum
+generator (Phase 4). Camera adapters remain stubs (Phase 5).
 
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
-behavior and proves the extracted modules equivalent (Phases 1 & 3). Test suite:
-59 tests.
+behavior and proves the extracted modules equivalent (Phases 1, 3 & 4). Test suite:
+70 tests.
 
 ## Usage
 

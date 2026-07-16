@@ -6,6 +6,14 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Docs synced for Phase 4
+**Changed**
+- Requirements → **Rev 1.4** (SYN-001…006, 008, 009 *Implemented*; SYN-007
+  *In Progress* — Gaussian done, Lorentzian/Voigt future).
+- Migration Plan → **Rev 1.5** (Phase 4 and Gate D → *In Progress*).
+- Architecture → **Rev 1.6** (Synthetic Spectrum Generator → *Implemented*).
+- README Status updated (70 tests).
+
 ### 2026-07-16 — Phase 4: synthetic spectrum generator
 **Added**
 - `src/synthetic/generator.py` — production generator (SYN-001…009): wavelength
