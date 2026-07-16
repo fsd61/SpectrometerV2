@@ -6,6 +6,18 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Sync engineering docs to progress (Rev 1.3)
+**Changed**
+- Bumped the three engineering documents to **Rev 1.3** (history rows) and
+  renamed them to `..._Rev_1.3.docx`.
+- Migration Plan: Phase 1 → *In Progress*; first-sprint steps 2 (inventory) and
+  6 (golden regression suite) → *Implemented*.
+- Requirements: TEST-002 (synthetic verification) → *In Progress*.
+- Architecture: added status to the Testing Architecture section — unit,
+  golden-data, and synthetic-data tests *Implemented*; camera-contract,
+  platform-acceptance, and hardware-in-the-loop *Planned*.
+- README: reference Rev 1.3 and note the golden regression suite.
+
 ### 2026-07-16 — Phase 1: golden regression suite
 **Added**
 - `tests/regression/` — characterization + ground-truth suite that pins the
