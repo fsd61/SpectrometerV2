@@ -6,6 +6,16 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Docs synced for Phase 6
+**Changed**
+- Requirements → **Rev 1.6** (CLI-004, ERR-001, PLAT-004, DATA-002 →
+  *Implemented*; PLAT-001/002/003/007, DATA-001 → *In Progress*).
+- Migration Plan → **Rev 1.7** (Phase 6 → *In Progress* — headless Linux path
+  validated; Windows/Pi hardware pending).
+- Architecture → **Rev 1.8** (Application Core and Data Persistence →
+  *Implemented*).
+- README Status updated (108 tests).
+
 ### 2026-07-16 — Phase 6: platform detection + remaining diagnostics
 **Added**
 - `src/platforms/detect.py` — `detect_platform()` / `recommended_camera_backend()`
