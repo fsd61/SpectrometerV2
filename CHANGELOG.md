@@ -6,6 +6,22 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 3: first scientific-core extraction
+**Added**
+- `src/analysis/smoothing.py` (`savitzky_golay`), `src/analysis/peaks.py`
+  (`peak_indexes`), and `src/calibration/wavelength.py` (polynomial calibration)
+  — extracted from the baseline and proven equivalent to `golden/*.json`
+  (Savitzky–Golay max diff 5e-9; peak indices and calibration exact).
+- `tests/regression/test_extracted_equivalence.py` (Gate C equivalence) plus
+  unit tests for the analysis and calibration modules. Suite now **42 tests**.
+
+**Changed**
+- Migration Plan → **Rev 1.4**: Phase 3 and Gate C → *In Progress*; first-sprint
+  step 7 → *In Progress*.
+- Architecture → **Rev 1.4**: Scientific Analysis and Calibration Service →
+  *In Progress*.
+- README: de-pinned the engineering-document version references.
+
 ### 2026-07-16 — Sync engineering docs to progress (Rev 1.3)
 **Changed**
 - Bumped the three engineering documents to **Rev 1.3** (history rows) and
