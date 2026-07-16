@@ -42,3 +42,21 @@ def test_usb_camera_without_hardware_fails_gracefully(tmp_path):
 
 def test_invalid_config_returns_2(tmp_path):
     assert main(_base(tmp_path) + ["--set", "logging.level=LOUD", "validate-config"]) == 2
+
+
+def test_verify_hardware_synthetic_ok(tmp_path):
+    assert main(_base(tmp_path) + ["--set", "camera.backend=synthetic", "verify-hardware"]) == 0
+
+
+def test_check_calibration_ok(tmp_path):
+    cal = tmp_path / "caldata.txt"
+    cal.write_text("35,250,470,700\r\n404.66,435.83,546.07,611.60\r\n")
+    rc = main(_base(tmp_path) + ["--set", f"calibration.file={cal}",
+                                 "--set", "camera.width=800", "check-calibration"])
+    assert rc == 0
+
+
+def test_check_calibration_missing_returns_1(tmp_path):
+    rc = main(_base(tmp_path) + ["--set", f"calibration.file={tmp_path / 'none.txt'}",
+                                 "check-calibration"])
+    assert rc == 1

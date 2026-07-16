@@ -15,13 +15,6 @@ from .cli import build_parser
 
 _VERBOSITY = ["INFO", "DEBUG"]
 
-# Diagnostics still to be implemented; recognized but reported gracefully.
-_NOT_YET_IMPLEMENTED = {
-    "verify-hardware": "hardware verification diagnostic",
-    "check-calibration": "calibration check diagnostic",
-}
-
-
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -68,10 +61,10 @@ def _dispatch(command: str, config, logger: logging.Logger, args) -> int:
         return commands.generate_synthetic(config, logger, args.output)
     if command == "analyze":
         return commands.analyze_file(config, logger, args.input)
-    if command in _NOT_YET_IMPLEMENTED:
-        logger.warning("Command '%s' (%s) is not yet implemented.", command, _NOT_YET_IMPLEMENTED[command])
-        print(f"'{command}' is not yet implemented.", file=sys.stderr)
-        return 0
+    if command == "verify-hardware":
+        return commands.verify_hardware(config, logger)
+    if command == "check-calibration":
+        return commands.check_calibration(config, logger)
     logger.error("Unknown command: %s", command)
     return 2
 

@@ -6,6 +6,19 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 6: platform detection + remaining diagnostics
+**Added**
+- `src/platforms/detect.py` — `detect_platform()` / `recommended_camera_backend()`
+  (Raspberry Pi detection; uses the now-unshadowed stdlib `platform`).
+- `src/calibration/persistence.py` — `load_calibration_points` /
+  `write_calibration_points` (baseline `caldata.txt` format).
+- CLI `verify-hardware` (platform + camera report) and `check-calibration`
+  (fit report: point count, order, R², wavelength range) — completing the
+  CLI-004 diagnostic set (test-camera, verify-hardware, check-calibration,
+  validate-config, generate-synthetic, analyze).
+- Unit tests (platforms, calibration persistence) and CLI tests. Suite now
+  **108 tests**.
+
 ### 2026-07-16 — Application core wired end-to-end + pluggable persistence
 **Added**
 - `src/data/sinks.py` — `SpectrumSink` interface with `CsvSpectrumSink`
