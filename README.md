@@ -23,7 +23,7 @@ attribution will accompany the first public release.
 src/                  Application sources (flat layout — no wrapper package)
   app/          startup, CLI, orchestration
   config/       INI schema, validation, profiles      (CFG-*)
-  platform/     platform-specific services            (PLAT-*)
+  platforms/    platform-specific services            (PLAT-*)
   cameras/      camera contract + adapters (USB, Pi)   (HW-*)
   acquisition/  frame capture + acquisition metadata
   processing/   spectrum extraction + shared Spectrum object
@@ -63,4 +63,8 @@ spectrometerv2 describe-config
 spectrometerv2 --config config/default.ini --profile lab --set synthetic.seed=7 validate-config
 
 # Run from source without installing
-PYTHONPATH=src python -m 
+PYTHONPATH=src python -m app validate-config
+
+# Run the test suite
+pytest
+```

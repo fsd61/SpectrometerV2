@@ -21,9 +21,10 @@ spectrometerv2 = "app.main:main"
 
 # Flat src layout: top-level packages (app, config, cameras, ...) plus a couple
 # of loose modules (errors, logging_setup) live directly under src/.
-# NOTE: because these are generic top-level names, installing into a shared
-# environment can shadow stdlib/third-party modules (notably `platform`).
-# Revisit before publishing installable artifacts.
+# NOTE: these are generic top-level names; installed into a shared environment
+# they can shadow third-party modules. The worst case, `platform` (stdlib), has
+# been renamed to `platforms`. Revisit the remaining names (app, config, data,
+# ui) before publishing installable artifacts.
 [tool.setuptools]
 package-dir = { "" = "src" }
 py-modules = ["errors", "logging_setup"]

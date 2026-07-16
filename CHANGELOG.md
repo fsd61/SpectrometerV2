@@ -6,6 +6,19 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Rebrand to SpectrometerV2 + platform package rename
+**Changed**
+- Docs: replaced the remaining project-name uses of "PySpectrometer2" with
+  "SpectrometerV2" across all three engineering documents (titles, `Project:`,
+  prose); corrected the Architecture §7 package paths to the flattened `src/`
+  layout; renamed the files to `SpectrometerV2_*_Rev_1.2.docx`.
+- Renamed the `src/platform/` package to `src/platforms/` so it no longer
+  shadows the standard-library `platform` module; updated README, Architecture
+  §7, and the `pyproject.toml` note.
+
+**Fixed**
+- `import platform` resolves to the standard library again (verified). 16 tests pass.
+
 ### 2026-07-16 — Engineering docs: implementation-status annotations (Rev 1.2)
 **Changed**
 - Bumped the three engineering documents to **Rev 1.2** (revision block + history
