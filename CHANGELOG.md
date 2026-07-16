@@ -6,6 +6,19 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 3: spectrum extraction + end-to-end pipeline
+**Added**
+- `src/processing/extraction.py` — `extract_spectrum` / `extract_intensity` /
+  `to_grayscale`, porting the baseline crop → 3-row-mean → uint8 intensity step
+  into a platform-neutral function producing the shared `Spectrum` (center row =
+  `H // 2`, exact 3-row mean with uint8 truncation).
+- `src/analysis/pipeline.py` — `analyze()`: Savitzky–Golay smoothing + peak
+  detection + optional pixel→wavelength mapping, returning `Peak(pixel,
+  intensity, wavelength)`.
+- Unit tests for extraction and an integration test (frame → extract →
+  calibrate → analyze recovers all four reference peaks with correct
+  wavelengths). Suite now **52 tests**.
+
 ### 2026-07-16 — Phase 3: first scientific-core extraction
 **Added**
 - `src/analysis/smoothing.py` (`savitzky_golay`), `src/analysis/peaks.py`
