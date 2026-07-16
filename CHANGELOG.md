@@ -6,6 +6,23 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 1: golden regression suite
+**Added**
+- `tests/regression/` — characterization + ground-truth suite that pins the
+  proven baseline scientific behavior before the core is extracted:
+  - `_baseline.py` loads the original `specFunctions.py` and provides a
+    deterministic (seeded, version-stable) multi-Gaussian spectrum generator.
+  - `golden/*.json` snapshots: Savitzky–Golay output, peak indices,
+    wavelength→RGB map, 3- and 4-point calibration, and graticule.
+  - `test_baseline_characterization.py` (5 tests) re-runs the baseline and
+    asserts equivalence to the golden snapshots (within tolerance).
+  - `test_synthetic_recovery.py` (4 tests) verifies peak-center recovery,
+    amplitude ordering, an FWHM self-check, and an SNR sanity relationship —
+    the template the migrated `analysis` module must satisfy (TEST-002).
+  - `generate_golden.py` + `README.md` documenting the regenerate/verify flow.
+- Test suite now **25 tests** (was 16). Advances Migration Plan Phase 1 and lays
+  the groundwork for Gate C (scientific core matches golden data).
+
 ### 2026-07-16 — Legacy feature inventory
 **Added**
 - `Docs/Legacy_Feature_Inventory.md` — catalog of the baseline PySpectrometer2
