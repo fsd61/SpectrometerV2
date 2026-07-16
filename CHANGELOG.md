@@ -6,6 +6,14 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Docs synced for Phase 5
+**Changed**
+- Requirements → **Rev 1.5** (HW-001…004 and PLAT-005 → *Implemented*).
+- Migration Plan → **Rev 1.6** (Gate E → *In Progress*).
+- Architecture → **Rev 1.7** (Camera Abstraction Layer and Acquisition Service →
+  *Implemented*; camera-contract tests → *Implemented*).
+- README Status updated (86 tests).
+
 ### 2026-07-16 — Phase 5: camera abstraction + acquisition
 **Added**
 - `src/cameras/`: `SyntheticCameraAdapter` (hardware-free; frames encode a
