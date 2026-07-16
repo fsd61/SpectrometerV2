@@ -1,9 +1,4 @@
-"""Application entry point: parse args, configure services, dispatch (ERR-002).
-
-The whole run is wrapped so that any unexpected failure is logged before a
-controlled, non-zero exit whenever logging is available, and configuration
-errors terminate gracefully with a clear message (CFG-005).
-"""
+"""Application entry point: parse args, configure services, dispatch (ERR-002)."""
 
 from __future__ import annotations
 
@@ -15,20 +10,15 @@ from config import load_config
 from config.schema import SCHEMA
 from errors import ConfigError, PySpectrometerError
 from logging_setup import setup_logging
+from . import commands
 from .cli import build_parser
 
-_VERBOSITY = ["INFO", "DEBUG"]  # index by --verbose count (capped)
+_VERBOSITY = ["INFO", "DEBUG"]
 
-# Diagnostic/pipeline commands not yet implemented in the skeleton. They are
-# recognized and dispatched, but report a clear "not yet implemented" status
-# rather than crashing (supports incremental migration).
+# Diagnostics still to be implemented; recognized but reported gracefully.
 _NOT_YET_IMPLEMENTED = {
-    "run": "acquisition/analysis pipeline",
-    "test-camera": "camera connectivity diagnostic",
     "verify-hardware": "hardware verification diagnostic",
     "check-calibration": "calibration check diagnostic",
-    "generate-synthetic": "synthetic data generation",
-    "analyze": "analysis pipeline",
 }
 
 
@@ -36,56 +26,52 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # 'describe-config' needs neither config nor logging; handle it first.
     if args.command == "describe-config":
         _describe_config()
         return 0
 
-    # Load + validate configuration (CFG-005: graceful failure, clear message).
     try:
-        config = load_config(
-            config_path=args.config,
-            profile=args.profile,
-            overrides=args.overrides,
-        )
+        config = load_config(config_path=args.config, profile=args.profile, overrides=args.overrides)
     except ConfigError as exc:
         print(f"Configuration error:\n{exc}", file=sys.stderr)
         return 2
 
-    # Configure logging from config, with CLI verbosity taking precedence (CLI-003).
     log_cfg = config.section("logging")
     level = _VERBOSITY[min(args.verbose, len(_VERBOSITY) - 1)] if args.verbose else log_cfg["level"]
     logger = setup_logging(
-        level=level,
-        directory=log_cfg["directory"],
-        max_bytes=log_cfg["max_bytes"],
-        backup_count=log_cfg["backup_count"],
-        console=log_cfg["console"],
+        level=level, directory=log_cfg["directory"], max_bytes=log_cfg["max_bytes"],
+        backup_count=log_cfg["backup_count"], console=log_cfg["console"],
     )
 
     command = args.command or "run"
     try:
-        return _dispatch(command, config, logger)
+        return _dispatch(command, config, logger, args)
     except PySpectrometerError as exc:
         logger.error("%s", exc)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
     except Exception:  # noqa: BLE001 - last-resort guard: log before exit (ERR-002)
         logger.exception("Unexpected fatal error")
         return 1
 
 
-def _dispatch(command: str, config, logger: logging.Logger) -> int:
+def _dispatch(command: str, config, logger: logging.Logger, args) -> int:
     if command == "validate-config":
         logger.info("Configuration is valid.")
         print("Configuration is valid.")
         return 0
-
+    if command == "run":
+        return commands.run(config, logger, args.output)
+    if command == "test-camera":
+        return commands.test_camera(config, logger)
+    if command == "generate-synthetic":
+        return commands.generate_synthetic(config, logger, args.output)
+    if command == "analyze":
+        return commands.analyze_file(config, logger, args.input)
     if command in _NOT_YET_IMPLEMENTED:
-        logger.warning("Command '%s' (%s) is not yet implemented in this build.",
-                       command, _NOT_YET_IMPLEMENTED[command])
-        print(f"'{command}' is not yet implemented (skeleton build).", file=sys.stderr)
+        logger.warning("Command '%s' (%s) is not yet implemented.", command, _NOT_YET_IMPLEMENTED[command])
+        print(f"'{command}' is not yet implemented.", file=sys.stderr)
         return 0
-
     logger.error("Unknown command: %s", command)
     return 2
 

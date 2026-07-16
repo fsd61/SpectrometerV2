@@ -6,6 +6,24 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Application core wired end-to-end + pluggable persistence
+**Added**
+- `src/data/sinks.py` — `SpectrumSink` interface with `CsvSpectrumSink`
+  (CSV + sidecar metadata JSON), `NullSink`, and `read_csv_spectrum`. Built so
+  InfluxDB / SQL / Grafana backends are future implementations of the same
+  interface (DATA-001/002; see `BACKLOG.md`).
+- `src/app/commands.py` + wired CLI: `run`, `test-camera`, `generate-synthetic`,
+  and `analyze` now work end-to-end (config → camera factory → acquisition →
+  analysis → sink); added `--output` / `--input`.
+- `BACKLOG.md` capturing deferred features (Grafana/InfluxDB/SQL) and the
+  pluggable-sink design intent.
+- Unit tests for sinks and integration tests driving the CLI (synthetic backend,
+  graceful USB failure without hardware). Suite now **98 tests**.
+
+The application now runs headless on Linux — exercising config, camera
+discovery, acquisition, analysis, logging, persistence, and synthetic generation
+(Migration Plan Phase 6, Linux path). Docs will be synced at Phase 6 completion.
+
 ### 2026-07-16 — Docs synced for Phase 5
 **Changed**
 - Requirements → **Rev 1.5** (HW-001…004 and PLAT-005 → *Implemented*).

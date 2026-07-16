@@ -1,9 +1,6 @@
 """Command-line interface definition (CLI-001..CLI-004).
 
-Builds the argument parser only; execution lives in ``main``. Diagnostic modes
-required by CLI-004 are exposed as subcommands (camera testing, hardware
-verification, calibration checks, configuration validation, synthetic-data
-generation, and analysis).
+Builds the argument parser only; execution lives in ``main``.
 """
 
 from __future__ import annotations
@@ -20,7 +17,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
-    # Global options (apply to every command).
     parser.add_argument("--config", metavar="PATH", help="Path to an INI configuration file (CLI-002).")
     parser.add_argument("--profile", metavar="NAME", help="Configuration profile to overlay (CLI-002, CFG-003).")
     parser.add_argument(
@@ -31,16 +27,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--set", dest="overrides", action="append", default=[], metavar="SECTION.KEY=VALUE",
         help="Override a configuration value without editing the file (CFG-006). Repeatable.",
     )
+    parser.add_argument("-o", "--output", default=".", metavar="DIR",
+                        help="Directory for saved outputs (default: current directory).")
+    parser.add_argument("-i", "--input", metavar="PATH",
+                        help="Input spectrum CSV (for the 'analyze' command).")
 
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
-    sub.add_parser("run", help="Run acquisition and analysis (default).")
+    sub.add_parser("run", help="Acquire one spectrum, analyze, and save (default).")
     sub.add_parser("validate-config", help="Validate configuration and exit (CLI-004).")
     sub.add_parser("describe-config", help="Print the documented configuration schema.")
-    sub.add_parser("test-camera", help="Diagnostic: test camera connectivity (CLI-004).")
+    sub.add_parser("test-camera", help="Diagnostic: open the camera and grab a frame (CLI-004).")
     sub.add_parser("verify-hardware", help="Diagnostic: verify hardware (CLI-004).")
     sub.add_parser("check-calibration", help="Diagnostic: check wavelength calibration (CLI-004).")
-    sub.add_parser("generate-synthetic", help="Generate synthetic spectral test data (CLI-004, SYN-001).")
-    sub.add_parser("analyze", help="Run scientific analysis on input data (CLI-004).")
+    sub.add_parser("generate-synthetic", help="Generate synthetic spectral test data, analyze, and save (CLI-004, SYN-001).")
+    sub.add_parser("analyze", help="Analyze a saved spectrum CSV (use --input) (CLI-004).")
 
     return parser
