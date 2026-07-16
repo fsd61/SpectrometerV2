@@ -44,12 +44,15 @@ Patch_-_Wtx_+_SA/           Preserved in-progress patch material
 
 ## Status
 
-Sprint 1 skeleton. Working today: the configuration service and logging
-service, wired into a CLI. Scientific modules, camera adapters, and the
-synthetic generator are stubs to be filled in per the Migration Plan phases.
+Working today: configuration and logging services (CLI), and an extracted,
+golden-verified scientific core — spectrum extraction, wavelength calibration,
+Savitzky–Golay smoothing, peak detection, Gaussian line fitting, FWHM, and SNR —
+with an end-to-end analysis pipeline. Camera adapters and the synthetic generator
+remain stubs (Migration Plan Phases 4–5).
 
-A golden regression suite (`tests/regression/`) pins the baseline scientific
-behavior ahead of extraction (Migration Plan Phase 1). Test suite: 25 tests.
+A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
+behavior and proves the extracted modules equivalent (Phases 1 & 3). Test suite:
+59 tests.
 
 ## Usage
 

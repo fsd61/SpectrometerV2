@@ -6,6 +6,22 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 3: FWHM, SNR, Gaussian fit (scientific core extracted)
+**Added**
+- `src/analysis/measurements.py` — `half_max_fwhm`, `gaussian_fit`
+  (dependency-free log-parabola), `estimate_noise` (Savitzky–Golay-residual
+  MAD), and `estimate_snr`. New capability beyond the baseline (TEST-002:
+  FWHM/amplitude/SNR recovery).
+- Pipeline `analyze(measure=True)` adds per-peak FWHM (px and nm), amplitude,
+  and SNR, plus `SpectralAnalysis.noise`.
+- Unit tests for the measurements and a pipeline measurement test. Suite now
+  **59 tests**.
+
+**Changed**
+- Architecture → **Rev 1.5**: Spectrum Extraction and Scientific Analysis
+  components → *Implemented*.
+- README: Status now reflects the extracted scientific core.
+
 ### 2026-07-16 — Phase 3: spectrum extraction + end-to-end pipeline
 **Added**
 - `src/processing/extraction.py` — `extract_spectrum` / `extract_intensity` /

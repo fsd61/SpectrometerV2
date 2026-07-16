@@ -38,3 +38,19 @@ def test_analyze_without_calibration_leaves_wavelength_none():
     res = analyze(spec.intensities, peak_thres=0.15, peak_min_dist=20)
     assert res.peaks and all(p.wavelength is None for p in res.peaks)
     assert len(res.smoothed) == len(spec)
+
+
+def test_measure_populates_fwhm_snr_and_fwhm_nm():
+    # In _synthetic_frame the third LINES value is the Gaussian sigma (px),
+    # so the expected FWHM is 2.3548 * sigma.
+    factor = 2.0 * np.sqrt(2.0 * np.log(2.0))
+    spec = extract_spectrum(_synthetic_frame())
+    cal = calibrate(CAL_PIXELS, CAL_WAVELENGTHS, len(spec))
+    res = analyze(spec.intensities, wavelengths=cal.wavelengths,
+                  peak_thres=0.15, peak_min_dist=20, measure=True)
+    assert res.noise is not None and res.noise >= 0
+    for center, _amp, sigma in LINES:
+        peak = min(res.peaks, key=lambda q: abs(q.pixel - center))
+        assert peak.fwhm == pytest.approx(factor * sigma, rel=0.15)
+        assert peak.snr is not None and peak.snr > 0
+        assert peak.fwhm_nm is not None and peak.fwhm_nm > 0
