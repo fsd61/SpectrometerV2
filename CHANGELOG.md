@@ -6,6 +6,15 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Legacy feature inventory
+**Added**
+- `Docs/Legacy_Feature_Inventory.md` — catalog of the baseline PySpectrometer2
+  code: source files, dependencies, CLI, camera acquisition, processing
+  pipeline, keybindings, output formats, hard-coded parameters, known
+  limitations, and a mapping to the target modules; plus the Wtx+SA patch's
+  optional advanced analysis (FFT, wavelets, simulated annealing, plotting).
+  Supports Migration Plan Phase 0 / the first-sprint inventory step.
+
 ### 2026-07-16 — Rebrand to SpectrometerV2 + platform package rename
 **Changed**
 - Docs: replaced the remaining project-name uses of "PySpectrometer2" with
