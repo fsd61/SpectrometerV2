@@ -6,6 +6,20 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-16 — Phase 8 groundwork: packaging, install docs, acceptance test
+**Added**
+- `INSTALL.md` — Linux / Windows / Raspberry Pi prerequisites and quickstart
+  (Migration Plan Phase 8: document installation and platform prerequisites).
+- `tests/platform/test_platform_acceptance.py` — full-stack smoke on the current
+  platform (detection, synthetic acquisition → analysis, generate → persist →
+  reload → analyze, CLI run). Suite now **112 tests**.
+
+**Changed**
+- `pyproject.toml`: declare **numpy** as a runtime dependency; add `[usb]`
+  (opencv-python) and `[pi]` (picamera2) optional extras. Verified
+  `pip install -e .` builds and the `spectrometerv2` console script runs the
+  full pipeline end-to-end.
+
 ### 2026-07-16 — Docs synced for Phase 6
 **Changed**
 - Requirements → **Rev 1.6** (CLI-004, ERR-001, PLAT-004, DATA-002 →

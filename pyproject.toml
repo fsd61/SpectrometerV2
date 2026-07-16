@@ -10,10 +10,11 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "Frank DiGennaro" }]
-dependencies = []
+dependencies = ["numpy>=1.22"]
 
 [project.optional-dependencies]
-# Hardware/scientific deps are added as each migration phase lands them.
+usb = ["opencv-python>=4.5"]     # USB / webcam acquisition
+pi = ["picamera2>=0.3"]          # Raspberry Pi camera (installed on the Pi)
 dev = ["pytest>=7"]
 
 [project.scripts]
