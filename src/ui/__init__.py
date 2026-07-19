@@ -1,5 +1,10 @@
-"""Presentation layer: GUI and plotting.
+"""Presentation layer: rendering and (future) GUI.
 
-No scientific algorithms live here; the UI calls into application services
-only (Architecture §3, §7; Migration Plan Phase 7).
+Non-interactive PNG rendering lives here now (render_spectrum, render_waterfall);
+the interactive GUI is future work (Migration Plan Phase 7). No scientific
+algorithms in this layer.
 """
+
+from .plotting import render_spectrum, render_waterfall
+
+__all__ = ["render_spectrum", "render_waterfall"]

@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from app.main import main
 
 
@@ -60,3 +62,15 @@ def test_check_calibration_missing_returns_1(tmp_path):
     rc = main(_base(tmp_path) + ["--set", f"calibration.file={tmp_path / 'none.txt'}",
                                  "check-calibration"])
     assert rc == 1
+
+
+def test_stream_renders_waterfall(tmp_path):
+    pytest.importorskip("matplotlib")
+    rc = main(_base(tmp_path) + ["-o", str(tmp_path), "--frames", "15", "stream"])
+    assert rc == 0 and (tmp_path / "waterfall.png").exists()
+
+
+def test_generate_synthetic_plot_writes_png(tmp_path):
+    pytest.importorskip("matplotlib")
+    rc = main(_base(tmp_path) + ["-o", str(tmp_path), "--plot", "generate-synthetic"])
+    assert rc == 0 and (tmp_path / "synthetic.png").exists()

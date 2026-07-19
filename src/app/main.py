@@ -54,17 +54,19 @@ def _dispatch(command: str, config, logger: logging.Logger, args) -> int:
         print("Configuration is valid.")
         return 0
     if command == "run":
-        return commands.run(config, logger, args.output)
+        return commands.run(config, logger, args.output, args.plot)
     if command == "test-camera":
         return commands.test_camera(config, logger)
     if command == "generate-synthetic":
-        return commands.generate_synthetic(config, logger, args.output)
+        return commands.generate_synthetic(config, logger, args.output, args.plot)
     if command == "analyze":
-        return commands.analyze_file(config, logger, args.input)
+        return commands.analyze_file(config, logger, args.input, args.plot)
     if command == "verify-hardware":
         return commands.verify_hardware(config, logger)
     if command == "check-calibration":
         return commands.check_calibration(config, logger)
+    if command == "stream":
+        return commands.stream(config, logger, args.output, args.frames)
     logger.error("Unknown command: %s", command)
     return 2
 

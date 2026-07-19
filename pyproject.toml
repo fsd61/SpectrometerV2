@@ -15,7 +15,8 @@ dependencies = ["numpy>=1.22"]
 [project.optional-dependencies]
 usb = ["opencv-python>=4.5"]     # USB / webcam acquisition
 pi = ["picamera2>=0.3"]          # Raspberry Pi camera (installed on the Pi)
-dev = ["pytest>=7"]
+plot = ["matplotlib>=3.5"]    # PNG spectrum + waterfall rendering
+dev = ["pytest>=7", "matplotlib>=3.5"]
 
 [project.scripts]
 spectrometerv2 = "app.main:main"

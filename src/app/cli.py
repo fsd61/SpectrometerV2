@@ -1,7 +1,4 @@
-"""Command-line interface definition (CLI-001..CLI-004).
-
-Builds the argument parser only; execution lives in ``main``.
-"""
+"""Command-line interface definition (CLI-001..CLI-004)."""
 
 from __future__ import annotations
 
@@ -31,6 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Directory for saved outputs (default: current directory).")
     parser.add_argument("-i", "--input", metavar="PATH",
                         help="Input spectrum CSV (for the 'analyze' command).")
+    parser.add_argument("--plot", action="store_true",
+                        help="Also save a PNG plot of the spectrum (needs the [plot] extra).")
+    parser.add_argument("--frames", type=int, default=30, metavar="N",
+                        help="Number of frames for the 'stream' command (default: 30).")
 
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -42,5 +43,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("check-calibration", help="Diagnostic: check wavelength calibration (CLI-004).")
     sub.add_parser("generate-synthetic", help="Generate synthetic spectral test data, analyze, and save (CLI-004, SYN-001).")
     sub.add_parser("analyze", help="Analyze a saved spectrum CSV (use --input) (CLI-004).")
+    sub.add_parser("stream", help="Play a time-varying synthetic stream and render a waterfall PNG.")
 
     return parser

@@ -6,6 +6,21 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — Streaming synthetic source + visualization
+**Added**
+- `src/synthetic/stream.py` — `SyntheticStream`: a reproducible, time-varying
+  scene (line drift + amplitude jitter + per-frame seeded noise) yielding
+  evolving `Spectrum` frames — the substrate for live/waterfall development and
+  streamed storage, no hardware required.
+- `src/ui/plotting.py` — `render_spectrum` (intensity trace + peak markers) and
+  `render_waterfall` (stacked spectra over time) to PNG via matplotlib
+  (lazy-imported; new `[plot]` extra), so importing the package never needs it.
+- CLI: `--plot` saves a spectrum PNG on `run` / `generate-synthetic` / `analyze`;
+  new `stream` command plays a synthetic stream and renders a waterfall PNG
+  (`--frames N`).
+- Unit tests (stream, plotting) and CLI tests; `[plot]` extra in pyproject.
+  Suite now **121 tests**.
+
 ### 2026-07-16 — Docs synced for Phase 8 groundwork
 **Changed**
 - Requirements → **Rev 1.7** (TEST-001 and ACC-001 → *In Progress*).
