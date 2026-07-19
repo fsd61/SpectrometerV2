@@ -8,7 +8,7 @@ version = "2.0.0.dev0"
 description = "Modular, cross-platform scientific spectrometer application."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "GPL-3.0-or-later" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "Frank DiGennaro" }]
 dependencies = ["numpy>=1.22"]
 

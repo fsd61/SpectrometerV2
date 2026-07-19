@@ -14,8 +14,9 @@ Architecture & Design, and Migration Plan.
 
 SpectrometerV2 builds on the original **PySpectrometer2** by **Les Wright**,
 whose proven spectral algorithms are preserved as the scientific baseline (see
-`Original_Pyspectrometer2/`, tag `baseline-v1.0`). Full credit and licensing
-attribution will accompany the first public release.
+`Original_Pyspectrometer2/`, tag `baseline-v1.0`). The scientific behavior is
+preserved and golden-tested, while the implementation is essentially new — see
+`ATTRIBUTION.md` for the full provenance and `NOTICE` for required credits.
 
 ## Repository layout
 
@@ -78,3 +79,9 @@ PYTHONPATH=src python -m app validate-config
 # Run the test suite
 pytest
 ```
+
+## License
+
+SpectrometerV2 is licensed under the **Apache License 2.0** (see `LICENSE`),
+the same license as the upstream PySpectrometer2. Attribution notices are in
+`NOTICE`; provenance and credit are detailed in `ATTRIBUTION.md`.

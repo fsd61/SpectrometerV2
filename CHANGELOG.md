@@ -6,6 +6,22 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — Licensing & attribution (Apache-2.0)
+**Added**
+- `LICENSE` — Apache License 2.0 (matches the upstream project).
+- `NOTICE` — required attribution: copyright Frank DiGennaro; derived from
+  PySpectrometer2 by Les Wright (Apache-2.0); vendored algorithm credits
+  (SciPy Savitzky-Golay, BSD-3-Clause; peakutils peak detection, MIT).
+- `ATTRIBUTION.md` — provenance: behavior preserved and golden-tested, the
+  implementation essentially new (~100% of the science retained, ~98% of the
+  code new), and third-party algorithm credits.
+
+**Changed**
+- `pyproject.toml` license → **Apache-2.0** (replacing an early GPL placeholder;
+  now matches upstream).
+- README: acknowledgements point to `ATTRIBUTION.md`/`NOTICE`; added a License
+  section.
+
 ### 2026-07-19 — Streaming synthetic source + visualization
 **Added**
 - `src/synthetic/stream.py` — `SyntheticStream`: a reproducible, time-varying

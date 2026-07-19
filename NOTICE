@@ -1,0 +1,28 @@
+SpectrometerV2
+Copyright 2026 Frank DiGennaro
+
+Licensed under the Apache License, Version 2.0 (see the LICENSE file).
+
+------------------------------------------------------------------------
+This product is derived from PySpectrometer2 by Les Wright
+(https://github.com/leswright1977/PySpectrometer2), which is licensed
+under the Apache License, Version 2.0.
+
+The proven scientific behavior of the original has been preserved and is
+enforced by regression ("golden") tests, but the implementation has been
+substantially rewritten. The original source is retained unmodified under
+Original_Pyspectrometer2/ (git tag: baseline-v1.0) for reference and
+regression testing.
+
+------------------------------------------------------------------------
+Portions of the analysis code are derived from third-party algorithms:
+
+  * Savitzky-Golay smoothing (src/analysis/smoothing.py) is derived from
+    the SciPy Cookbook and is distributed under the BSD 3-Clause License.
+    Copyright (c) 2001-2002 Enthought, Inc.; 2003-2022 SciPy Developers.
+
+  * Peak detection (src/analysis/peaks.py) is derived from peakutils and
+    is distributed under the MIT License.
+    Copyright (c) 2014-2022 Lucas Hermann Negri.
+
+See ATTRIBUTION.md for a fuller account of provenance and credit.
