@@ -21,12 +21,6 @@ def test_load_default_ini():
     assert cfg.get("synthetic", "wavelength_max") == pytest.approx(750.0)
 
 
-def test_profile_overlay():
-    cfg = load_config(DEFAULT_INI, profile="lab")
-    assert cfg.get("logging", "level") == "DEBUG"      # overridden by profile
-    assert cfg.get("camera", "width") == 2592          # overridden by profile
-    assert cfg.get("camera", "device_index") == 0      # inherited from base
-
 
 def test_cli_override_wins():
     cfg = load_config(DEFAULT_INI, overrides=["synthetic.seed=99", "logging.level=ERROR"])

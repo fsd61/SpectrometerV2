@@ -6,6 +6,18 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — Remove configuration profiles
+**Removed**
+- The configuration **profiles** feature: `config/profiles/lab.ini` and
+  `config/profiles/synthetic-ci.ini`, the `--profile` flag, and the overlay
+  logic in `config/loader.py`. Unnecessary for a single-user instrument; the
+  `--set section.key=value` overrides cover the remaining need.
+
+**Changed**
+- Requirements → **Rev 1.8**: CFG-003 (multiple configuration profiles) marked
+  *Withdrawn*.
+- README and `config/default.ini` de-referenced profiles. Suite now 126 tests.
+
 ### 2026-07-19 — Camera auto-detect with explicit no-camera policy
 **Changed**
 - Default `camera.backend` → **`auto`** (set in `schema.py`, the effective

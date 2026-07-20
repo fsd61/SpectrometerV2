@@ -23,7 +23,7 @@ preserved and golden-tested, while the implementation is essentially new — see
 ```
 src/                  Application sources (flat layout — no wrapper package)
   app/          startup, CLI, orchestration
-  config/       INI schema, validation, profiles      (CFG-*)
+  config/       INI schema and validation            (CFG-*)
   platforms/    platform-specific services            (PLAT-*)
   cameras/      camera contract + adapters (USB, Pi)   (HW-*)
   acquisition/  frame capture + acquisition metadata
@@ -35,7 +35,7 @@ src/                  Application sources (flat layout — no wrapper package)
   ui/           GUI + plotting
   errors.py         application exception hierarchy
   logging_setup.py  structured rotating logging        (LOG-*)
-config/         default.ini + profiles/                (externalized config)
+config/         default.ini                            (externalized config)
 tests/          unit / integration / regression / hardware / platform
 Docs/           engineering documents + reference papers
 Original_Pyspectrometer2/   Preserved upstream baseline (Les Wright)
@@ -69,8 +69,8 @@ spectrometerv2 --config config/default.ini validate-config
 # Print the documented configuration schema (CFG-004)
 spectrometerv2 describe-config
 
-# Overlay a profile and override a value at the command line (CFG-003, CFG-006)
-spectrometerv2 --config config/default.ini --profile lab --set synthetic.seed=7 validate-config
+# Override any value at the command line (CFG-006)
+spectrometerv2 --config config/default.ini --set synthetic.seed=7 validate-config
 
 # Run from source without installing
 PYTHONPATH=src python -m app validate-config

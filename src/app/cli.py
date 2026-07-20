@@ -15,7 +15,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     parser.add_argument("--config", metavar="PATH", help="Path to an INI configuration file (CLI-002).")
-    parser.add_argument("--profile", metavar="NAME", help="Configuration profile to overlay (CLI-002, CFG-003).")
     parser.add_argument(
         "-v", "--verbose", action="count", default=0,
         help="Increase log verbosity; repeatable (-vv for DEBUG) (CLI-003).",

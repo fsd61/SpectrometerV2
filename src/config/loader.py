@@ -3,8 +3,7 @@
 Resolution order (later overrides earlier):
     1. Schema defaults.
     2. Base INI file (``--config``), if provided.
-    3. Profile overlay (``--profile NAME`` -> ``<config_dir>/profiles/NAME.ini``).
-    4. Command-line overrides (``--set section.key=value``), which never modify
+    3. Command-line overrides (``--set section.key=value``), which never modify
        any file on disk (CFG-006).
 
 All type/choice/range problems and unknown sections/keys are collected and
@@ -49,7 +48,6 @@ class Config:
 
 def load_config(
     config_path: Optional[str | Path] = None,
-    profile: Optional[str] = None,
     overrides: Optional[Iterable[str]] = None,
 ) -> Config:
     """Load, layer, and validate configuration. See module docstring."""
@@ -65,13 +63,7 @@ def load_config(
     if config_path is not None:
         _overlay_file(Path(config_path), raw, errors, required=True)
 
-    # Layer 3: profile overlay.
-    if profile:
-        base_dir = Path(config_path).parent if config_path else Path("config")
-        profile_path = base_dir / "profiles" / f"{profile}.ini"
-        _overlay_file(profile_path, raw, errors, required=True, what=f"profile '{profile}'")
-
-    # Layer 4: CLI overrides (CFG-006).
+    # Layer 3: CLI overrides (CFG-006).
     if overrides:
         _apply_overrides(overrides, raw, errors)
 

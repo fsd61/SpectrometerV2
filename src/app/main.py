@@ -24,7 +24,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
 
     try:
-        config = load_config(config_path=args.config, profile=args.profile, overrides=args.overrides)
+        config = load_config(config_path=args.config, overrides=args.overrides)
     except ConfigError as exc:
         print(f"Configuration error:\n{exc}", file=sys.stderr)
         return 2
