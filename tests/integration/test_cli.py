@@ -74,3 +74,13 @@ def test_generate_synthetic_plot_writes_png(tmp_path):
     pytest.importorskip("matplotlib")
     rc = main(_base(tmp_path) + ["-o", str(tmp_path), "--plot", "generate-synthetic"])
     assert rc == 0 and (tmp_path / "synthetic.png").exists()
+
+
+def test_init_config_writes_validates_and_force(tmp_path):
+    target = tmp_path / "config.ini"
+    assert main(["-o", str(target), "init-config"]) == 0
+    assert target.exists() and "[camera]" in target.read_text()
+    assert main(["-o", str(target), "init-config"]) == 1            # refuses overwrite
+    assert main(["--force", "-o", str(target), "init-config"]) == 0  # --force overwrites
+    assert main(["--config", str(target), "--set", "logging.console=false",
+                 "--set", f"logging.directory={tmp_path}/logs", "validate-config"]) == 0

@@ -63,14 +63,19 @@ behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8).
 ```bash
 pip install -e .[dev]
 
-# Validate configuration (CLI-004)
-spectrometerv2 --config config/default.ini validate-config
+# One-time: create your documented config (~/.config/spectrometerv2/config.ini)
+spectrometerv2 init-config
 
-# Print the documented configuration schema (CFG-004)
-spectrometerv2 describe-config
+# From then on it's auto-loaded — no --config needed
+spectrometerv2 validate-config
+spectrometerv2 describe-config          # print the documented schema
 
-# Override any value at the command line (CFG-006)
-spectrometerv2 --config config/default.ini --set synthetic.seed=7 validate-config
+# Override any value for a single run (CFG-006)
+spectrometerv2 --set synthetic.seed=7 validate-config
+
+# Run hardware-free and save a plot
+spectrometerv2 --set camera.backend=synthetic --plot generate-synthetic
+spectrometerv2 --frames 60 stream        # synthetic waterfall
 
 # Run from source without installing
 PYTHONPATH=src python -m app validate-config
@@ -78,6 +83,15 @@ PYTHONPATH=src python -m app validate-config
 # Run the test suite
 pytest
 ```
+
+## Configuration
+
+Configuration is a single INI file. Run `spectrometerv2 init-config` to write a
+fully-commented `~/.config/spectrometerv2/config.ini` (generated from the schema,
+so every key is documented and defaults are always current). It's auto-discovered
+at startup — a project-local `./spectrometerv2.ini` also works, and `--config PATH`
+overrides both. `config/config.ini.example` in the repo is a browsable copy of the
+same file.
 
 ## License
 

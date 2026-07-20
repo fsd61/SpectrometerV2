@@ -16,6 +16,7 @@ from analysis.pipeline import analyze
 from calibration.persistence import load_calibration_points
 from calibration.wavelength import calibrate
 from cameras.factory import create_camera_from_config
+from config import render_ini, user_config_path
 from data.sinks import CsvSpectrumSink, read_csv_spectrum
 from .hardware import select_camera
 from errors import PySpectrometerError
@@ -182,4 +183,21 @@ def stream(config, logger: logging.Logger, output: str, frames: int) -> int:
                             title=f"Synthetic stream ({frames} frames)")
     print(f"Streamed {frames} frames -> {path}")
     logger.info("Streamed %d frames -> %s", frames, path)
+    return 0
+
+
+def init_config(output: str = None, force: bool = False) -> int:
+    """Write a fully-documented config.ini (generated from the schema)."""
+    if output and output != ".":
+        target = Path(output)
+        if target.is_dir():
+            target = target / "config.ini"
+    else:
+        target = user_config_path()
+    if target.exists() and not force:
+        print(f"{target} already exists - use --force to overwrite.")
+        return 1
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_ini(), encoding="utf-8")
+    print(f"Wrote configuration to {target}")
     return 0

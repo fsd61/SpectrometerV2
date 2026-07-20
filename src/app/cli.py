@@ -27,6 +27,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Directory for saved outputs (default: current directory).")
     parser.add_argument("-i", "--input", metavar="PATH",
                         help="Input spectrum CSV (for the 'analyze' command).")
+    parser.add_argument("--force", action="store_true",
+                        help="Overwrite an existing file (used by init-config).")
     parser.add_argument("--plot", action="store_true",
                         help="Also save a PNG plot of the spectrum (needs the [plot] extra).")
     parser.add_argument("--frames", type=int, default=30, metavar="N",
@@ -37,6 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("run", help="Acquire one spectrum, analyze, and save (default).")
     sub.add_parser("validate-config", help="Validate configuration and exit (CLI-004).")
     sub.add_parser("describe-config", help="Print the documented configuration schema.")
+    sub.add_parser("init-config", help="Write a documented config.ini (default: ~/.config/spectrometerv2/config.ini).")
     sub.add_parser("test-camera", help="Diagnostic: open the camera and grab a frame (CLI-004).")
     sub.add_parser("verify-hardware", help="Diagnostic: verify hardware (CLI-004).")
     sub.add_parser("check-calibration", help="Diagnostic: check wavelength calibration (CLI-004).")

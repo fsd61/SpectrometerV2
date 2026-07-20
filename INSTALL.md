@@ -65,14 +65,14 @@ picks the Pi camera when available, else USB.
 
 ```bash
 # validate configuration and print the documented schema
-spectrometerv2 --config config/default.ini validate-config
+spectrometerv2 --config config/config.ini.example validate-config
 spectrometerv2 describe-config
 
 # hardware-free: generate, analyze, and save a synthetic spectrum
 spectrometerv2 --set camera.backend=synthetic -o out generate-synthetic
 
 # acquire one spectrum from the configured camera, analyze, and save
-spectrometerv2 --config config/default.ini -o out run
+spectrometerv2 --config config/config.ini.example -o out run
 
 # diagnostics
 spectrometerv2 test-camera

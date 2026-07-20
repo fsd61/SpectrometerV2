@@ -5,7 +5,7 @@ import pytest
 from config import load_config
 from errors import ConfigError
 
-DEFAULT_INI = "config/default.ini"
+DEFAULT_INI = "config/config.ini.example"
 
 
 def test_defaults_load_without_file():

@@ -6,6 +6,22 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — Single-file configuration (init-config + auto-discovery)
+**Added**
+- `init-config` command — writes a fully-commented
+  `~/.config/spectrometerv2/config.ini`, generated from the schema so the
+  documentation and defaults are always current (`--force` to overwrite).
+- **Config auto-discovery** — the app loads `./spectrometerv2.ini` or
+  `~/.config/spectrometerv2/config.ini` automatically; `--config` still
+  overrides. No `--config` needed for normal use.
+- `src/config/generate.py` (`render_ini`, `discover_config_path`,
+  `user_config_path`); tests plus an XDG-isolated `conftest.py`.
+
+**Changed**
+- Renamed `config/default.ini` → `config/config.ini.example` (a browsable copy,
+  regenerated from the schema). README/INSTALL updated to the single-file model.
+  Suite now **132 tests**.
+
 ### 2026-07-19 — One-command Raspberry Pi setup
 **Added**
 - `scripts/setup_pi.sh` — turnkey Pi install: apt-installs the camera stack plus

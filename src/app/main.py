@@ -6,7 +6,7 @@ import logging
 import sys
 from typing import Optional, Sequence
 
-from config import load_config
+from config import load_config, discover_config_path
 from config.schema import SCHEMA
 from errors import ConfigError, PySpectrometerError
 from logging_setup import setup_logging
@@ -22,9 +22,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.command == "describe-config":
         _describe_config()
         return 0
+    if args.command == "init-config":
+        return commands.init_config(args.output, args.force)
 
     try:
-        config = load_config(config_path=args.config, overrides=args.overrides)
+        config = load_config(config_path=args.config or discover_config_path(), overrides=args.overrides)
     except ConfigError as exc:
         print(f"Configuration error:\n{exc}", file=sys.stderr)
         return 2

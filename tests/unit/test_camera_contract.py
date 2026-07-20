@@ -38,7 +38,7 @@ def test_factory_unknown_backend_raises():
 
 def test_factory_from_config_default_backend_is_auto():
     from config import load_config
-    cfg = load_config("config/default.ini")
+    cfg = load_config("config/config.ini.example")
     assert cfg.get("camera", "backend") == "auto"
     # 'auto' resolves to a real adapter: Pi camera on a Pi, else USB.
     cam = create_camera_from_config(cfg.section("camera"))

@@ -1,0 +1,105 @@
+# spectrometerv2 configuration
+#
+# Generated from the configuration schema: every key below is listed with
+# its purpose, type, default, and allowed values. Edit values as needed —
+# invalid or out-of-range values are rejected at startup with a clear message.
+# Any value can also be overridden per-run with: --set section.key=value
+
+[general]
+# Target platform hint. 'auto' detects at runtime.
+#   (type=str; default=auto; choices=auto, linux, windows, raspberrypi)
+platform = auto
+
+
+[logging]
+# Minimum log level.
+#   (type=str; default=INFO; choices=DEBUG, INFO, WARNING, ERROR, CRITICAL)
+level = INFO
+
+# Directory for rotating log files (LOG-002).
+#   (type=path; default=logs)
+directory = logs
+
+# Max bytes per log file before rotation.
+#   (type=int; default=1048576; min=1024)
+max_bytes = 1048576
+
+# Number of rotated log files to retain.
+#   (type=int; default=5; min=0)
+backup_count = 5
+
+# Also emit logs to stderr.
+#   (type=bool; default=true)
+console = true
+
+
+[camera]
+# Camera adapter backend. 'auto' picks the Pi camera or a USB camera; 'synthetic' bypasses hardware.
+#   (type=str; default=auto; choices=usb, picamera2, auto, synthetic)
+backend = auto
+
+# When 'auto' finds no camera: 'prompt' asks (only in an interactive terminal; otherwise behaves like 'error'), 'error' exits with guidance, 'synthetic' falls back to simulated data with a warning.
+#   (type=str; default=prompt; choices=prompt, error, synthetic)
+on_missing = prompt
+
+# Index of the camera device.
+#   (type=int; default=0; min=0)
+device_index = 0
+
+# Requested frame width in pixels.
+#   (type=int; default=1920; min=1)
+width = 1920
+
+# Requested frame height in pixels.
+#   (type=int; default=1080; min=1)
+height = 1080
+
+
+[processing]
+# Sensor row used for the 1-D spectral slice; -1 = auto/center.
+#   (type=int; default=-1; min=-1)
+slice_row = -1
+
+
+[calibration]
+# Path to the saved wavelength calibration.
+#   (type=path; default=config/calibration.json)
+file = config/calibration.json
+
+
+[synthetic]
+# Lower wavelength bound, nm (SYN-006).
+#   (type=float; default=380.0; min=0.0)
+wavelength_min = 380.0
+
+# Upper wavelength bound, nm (SYN-006).
+#   (type=float; default=750.0; min=0.0)
+wavelength_max = 750.0
+
+# Wavelength sampling interval, nm (SYN-006).
+#   (type=float; default=0.5; min=1e-06)
+sample_interval = 0.5
+
+# Default line FWHM, nm (SYN-004).
+#   (type=float; default=2.0; min=1e-06)
+fwhm = 2.0
+
+# Signal-to-noise ratio (SYN-005).
+#   (type=float; default=100.0; min=0.0)
+snr = 100.0
+
+# Baseline level (SYN-006).
+#   (type=float; default=0.0)
+baseline = 0.0
+
+# Baseline slope per nm (SYN-006).
+#   (type=float; default=0.0)
+baseline_slope = 0.0
+
+# Line profile (SYN-007). Only 'gaussian' is implemented initially.
+#   (type=str; default=gaussian; choices=gaussian, lorentzian, voigt)
+profile_type = gaussian
+
+# Deterministic RNG seed for reproducibility (SYN-006, SYN-009).
+#   (type=int; default=0; min=0)
+seed = 0

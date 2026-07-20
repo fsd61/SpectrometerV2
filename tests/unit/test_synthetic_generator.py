@@ -71,7 +71,7 @@ def test_metadata_is_complete():
 
 def test_from_config_builds_spec():
     from config import load_config
-    cfg = load_config("config/default.ini")
+    cfg = load_config("config/config.ini.example")
     spec = SyntheticSpectrumSpec.from_config(cfg.section("synthetic"), [500.0], [100.0])
     assert spec.wavelength_min == 380.0
     assert spec.profile_type == "gaussian"
