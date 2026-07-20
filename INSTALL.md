@@ -32,25 +32,34 @@ user can access `/dev/video*` (the `video` group).
 OpenCV opens cameras by index (DirectShow/MSMF); no V4L path is required — this
 is the cross-platform fix over the original tool.
 
-**Raspberry Pi** — the Pi camera uses `picamera2`, and it's best to take NumPy
-from apt too (the pip wheels can miss the system math library `libopenblas.so.0`
-on the Pi). Install the system packages, then use a venv that can see them:
+**Raspberry Pi** — one command does everything (system packages, venv, install,
+and verification):
+
+```bash
+bash scripts/setup_pi.sh
+```
+
+That installs the camera stack and the NumPy/OpenBLAS/matplotlib packages from
+apt, creates a `--system-site-packages` venv so pip uses the Pi-built NumPy
+(avoiding the `libopenblas.so.0` wheel issue entirely), installs SpectrometerV2,
+and checks `--version`. It's safe to re-run.
+
+Prefer to do it by hand? That's equivalent to:
 
 ```bash
 sudo apt update
-sudo apt install -y python3-picamera2 python3-numpy libopenblas0
-python3 -m venv --system-site-packages .venv   # --system-site-packages: see the apt packages
+sudo apt install -y python3-picamera2 python3-numpy python3-matplotlib libopenblas0
+python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 pip install -e .
 ```
 
-If you still hit `ImportError: libopenblas.so.0: cannot open shared object
-file`, pip installed its own NumPy that needs OpenBLAS. Either provide it
-(`sudo apt install -y libopenblas0`) or drop the pip copy so the venv falls back
-to the apt build (`pip uninstall -y numpy`).
-
 USB cameras also work on the Pi via `[usb]`. The default `camera.backend = auto`
 picks the Pi camera when available, else USB.
+
+> Note: this NumPy/OpenBLAS wrinkle is specific to **32-bit** Raspberry Pi OS.
+> On **64-bit** Pi OS the pip NumPy wheels bundle their own math library and
+> none of this is needed.
 
 ## Quickstart
 

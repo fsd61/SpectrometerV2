@@ -6,6 +6,17 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — One-command Raspberry Pi setup
+**Added**
+- `scripts/setup_pi.sh` — turnkey Pi install: apt-installs the camera stack plus
+  NumPy/matplotlib/OpenBLAS, creates a `--system-site-packages` venv (so pip uses
+  the Pi-built NumPy and the `libopenblas.so.0` issue never arises), installs
+  SpectrometerV2, and verifies `--version`. Idempotent.
+
+**Changed**
+- `INSTALL.md`: the Raspberry Pi path now leads with `bash scripts/setup_pi.sh`
+  (manual steps kept as the equivalent); noted the wrinkle is 32-bit-only.
+
 ### 2026-07-19 — Docs: Raspberry Pi NumPy/OpenBLAS install note
 **Changed**
 - `INSTALL.md`: document the `libopenblas.so.0` gotcha on Raspberry Pi (pip's
