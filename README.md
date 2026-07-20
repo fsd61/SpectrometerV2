@@ -39,8 +39,7 @@ config/         default.ini + profiles/                (externalized config)
 tests/          unit / integration / regression / hardware / platform
 Docs/           engineering documents + reference papers
 Original_Pyspectrometer2/   Preserved upstream baseline (Les Wright)
-Patch_-_Vertical_Slice/     Preserved in-progress patch material
-Patch_-_Wtx_+_SA/           Preserved in-progress patch material
+Docs/reference/            Preserved historical patch material (reference only)
 ```
 
 ## Status

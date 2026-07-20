@@ -6,6 +6,13 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — Declutter: patch material moved to Docs/reference/
+**Changed**
+- Relocated `Patch_-_Vertical_Slice/` and `Patch_-_Wtx_+_SA/` from the repo root
+  into `Docs/reference/` — historical, reference-only material not used by the
+  project (the Wtx+SA advanced-analysis code is earmarked in `BACKLOG.md`).
+  Updated README, BACKLOG, and the legacy inventory to the new paths.
+
 ### 2026-07-19 — Licensing & attribution (Apache-2.0)
 **Added**
 - `LICENSE` — Apache License 2.0 (matches the upstream project).

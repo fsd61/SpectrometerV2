@@ -19,8 +19,8 @@ baseline files.
 | `Original_Pyspectrometer2/src/PySpectrometer2-USB-v1.0.py` | 457 | Main app for USB/webcam cameras (OpenCV + V4L). |
 | `Original_Pyspectrometer2/src/PySpectrometer2-Picam2-v1.0.py` | 466 | Main app for the Raspberry Pi camera (Picamera2). Near-duplicate of the USB app plus gain control. |
 | `Original_Pyspectrometer2/src/specFunctions.py` | 464 | Shared scientific + UI helper library. |
-| `Patch_-_Wtx_+_SA/specFunctions.py` | 999 | Superset of the above adding FFT, wavelet denoising, simulated-annealing fitting, and plotting. |
-| `Patch_-_Vertical_Slice/compare_slices*.py` + `gemini-code-*` | — | Experimental vertical-slice extraction studies (AI-assisted); not part of the shipped app. |
+| `Docs/reference/Patch_-_Wtx_+_SA/specFunctions.py` | 999 | Superset of the above adding FFT, wavelet denoising, simulated-annealing fitting, and plotting. |
+| `Docs/reference/Patch_-_Vertical_Slice/compare_slices*.py` + `gemini-code-*` | — | Experimental vertical-slice extraction studies (AI-assisted); not part of the shipped app. |
 
 The two main scripts are ~90% identical: they share the same UI, processing
 loop, keybindings, and helper calls, differing only in the camera-acquisition

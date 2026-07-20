@@ -33,5 +33,5 @@ document and a Presentation/Export section to the Architecture document.
 - **GUI** — the OpenCV/graph/waterfall interface and keybindings (Migration Plan
   Phase 7); the extracted `ui/` package is still a stub.
 - **Advanced analysis** — FFT, wavelet denoising, and simulated-annealing line
-  fitting from the `Patch_-_Wtx_+_SA` material, as optional dependency-gated
+  fitting from the `Docs/reference/Patch_-_Wtx_+_SA` material, as optional dependency-gated
   features in `analysis/`.
