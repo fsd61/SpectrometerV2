@@ -17,7 +17,7 @@ def test_defaults_load_without_file():
 
 def test_load_default_ini():
     cfg = load_config(DEFAULT_INI)
-    assert cfg.get("camera", "backend") == "usb"
+    assert cfg.get("camera", "backend") == "auto"
     assert cfg.get("synthetic", "wavelength_max") == pytest.approx(750.0)
 
 

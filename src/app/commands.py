@@ -17,6 +17,7 @@ from calibration.persistence import load_calibration_points
 from calibration.wavelength import calibrate
 from cameras.factory import create_camera_from_config
 from data.sinks import CsvSpectrumSink, read_csv_spectrum
+from .hardware import select_camera
 from errors import PySpectrometerError
 from platforms import detect_platform
 from synthetic.generator import SyntheticSpectrumSpec, generate
@@ -131,16 +132,16 @@ def generate_synthetic(config, logger: logging.Logger, output: str, plot: bool =
 
 
 def run(config, logger: logging.Logger, output: str, plot: bool = False) -> int:
-    camera = create_camera_from_config(config.section("camera"))
-    camera.initialize()
+    camera, simulated = select_camera(config, logger)
     try:
         spectrum = acquire_spectrum(camera)
     finally:
         camera.shutdown()
     result = analyze(spectrum.intensities, wavelengths=spectrum.wavelengths or None, measure=True)
     path = CsvSpectrumSink(output).write(spectrum, name="acquisition")
-    print(f"Acquired {len(spectrum)} samples -> {path}")
-    logger.info("Acquired spectrum -> %s", path)
+    tag = " [SIMULATED]" if simulated else ""
+    print(f"Acquired {len(spectrum)} samples{tag} -> {path}")
+    logger.info("Acquired spectrum%s -> %s", " (simulated)" if simulated else "", path)
     _report_peaks(result, logger)
     _maybe_plot(spectrum, result, output, "acquisition", plot, logger)
     return 0

@@ -36,8 +36,10 @@ def test_factory_unknown_backend_raises():
         create_camera("nope")
 
 
-def test_factory_from_config_defaults_to_usb():
+def test_factory_from_config_default_backend_is_auto():
     from config import load_config
     cfg = load_config("config/default.ini")
+    assert cfg.get("camera", "backend") == "auto"
+    # 'auto' resolves to a real adapter: Pi camera on a Pi, else USB.
     cam = create_camera_from_config(cfg.section("camera"))
-    assert isinstance(cam, UsbCameraAdapter) and cam.width == 1920
+    assert isinstance(cam, (UsbCameraAdapter, Picamera2Adapter)) and cam.width == 1920

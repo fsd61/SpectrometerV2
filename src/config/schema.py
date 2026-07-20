@@ -47,9 +47,17 @@ SCHEMA: dict[str, dict[str, Field]] = {
     },
     "camera": {
         "backend": Field(
-            "str", "usb",
-            "Camera adapter backend. 'synthetic' bypasses hardware.",
+            "str", "auto",
+            "Camera adapter backend. 'auto' picks the Pi camera or a USB camera; "
+            "'synthetic' bypasses hardware.",
             choices=["usb", "picamera2", "auto", "synthetic"],
+        ),
+        "on_missing": Field(
+            "str", "prompt",
+            "When 'auto' finds no camera: 'prompt' asks (only in an interactive "
+            "terminal; otherwise behaves like 'error'), 'error' exits with guidance, "
+            "'synthetic' falls back to simulated data with a warning.",
+            choices=["prompt", "error", "synthetic"],
         ),
         "device_index": Field("int", 0, "Index of the camera device.", min=0),
         "width": Field("int", 1920, "Requested frame width in pixels.", min=1),

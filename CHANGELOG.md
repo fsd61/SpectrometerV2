@@ -6,6 +6,26 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — Camera auto-detect with explicit no-camera policy
+**Changed**
+- Default `camera.backend` → **`auto`** (set in `schema.py`, the effective
+  default; mirrored in `config/default.ini`). `auto` picks the Raspberry Pi
+  camera or an available USB camera.
+
+**Added**
+- `camera.on_missing` option (`prompt` | `error` | `synthetic`) governing what
+  `auto` does when **no camera is found**:
+  - `prompt` (default) — asks in an interactive terminal (defaults to No/exit);
+    **degrades to `error` when non-interactive** so headless/automated runs never
+    hang.
+  - `error` — exits with actionable guidance.
+  - `synthetic` — falls back to simulated data with a loud banner.
+  Simulated runs are flagged in the output (`[SIMULATED]`) and in metadata
+  (`source: synthetic`) so they can never be mistaken for real measurements.
+- `src/app/hardware.py` `select_camera()` encapsulating the policy (prompt
+  injectable for testing). Unit tests for every policy + the headless
+  degradation. Suite now **127 tests**.
+
 ### 2026-07-19 — Declutter: patch material moved to Docs/reference/
 **Changed**
 - Relocated `Patch_-_Vertical_Slice/` and `Patch_-_Wtx_+_SA/` from the repo root
