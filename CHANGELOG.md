@@ -6,6 +6,14 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-19 — Docs: Raspberry Pi NumPy/OpenBLAS install note
+**Changed**
+- `INSTALL.md`: document the `libopenblas.so.0` gotcha on Raspberry Pi (pip's
+  NumPy wheel needs the system OpenBLAS library). Recommend installing
+  `python3-numpy` + `libopenblas0` via apt and using a `--system-site-packages`
+  venv, with a fallback if pip's NumPy is already in place. (No code change — the
+  app itself was fine; this was an environment prerequisite.)
+
 ### 2026-07-19 — Remove configuration profiles
 **Removed**
 - The configuration **profiles** feature: `config/profiles/lab.ini` and
