@@ -12,11 +12,11 @@ def test_detect_platform_fields():
 
 
 def test_recommended_backend_is_known():
-    assert recommended_camera_backend() in {"usb", "picamera2"}
+    assert recommended_camera_backend() in {"usb", "csi"}
 
 
 def test_recommended_backend_follows_pi_flag():
     pi = PlatformInfo("linux", "aarch64", True, "3.11.0", "pi")
     pc = PlatformInfo("linux", "x86_64", False, "3.11.0", "pc")
-    assert recommended_camera_backend(pi) == "picamera2"
+    assert recommended_camera_backend(pi) == "csi"
     assert recommended_camera_backend(pc) == "usb"

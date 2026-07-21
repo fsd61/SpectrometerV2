@@ -6,6 +6,18 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — Camera backends: rename picamera2 → csi, add none
+**Changed**
+- Camera `backend` options are now **`auto | usb | csi | synthetic | none`**.
+  `csi` names the Raspberry Pi ribbon interface (clearer and driver-agnostic);
+  `picamera2` is still accepted as a silent alias. Platform auto-detection now
+  recommends `csi` on a Pi.
+- `none` = no camera: `run` refuses with guidance, `test-camera` /
+  `verify-hardware` report it as disabled, and `analyze` / `generate-synthetic`
+  are unaffected. `synthetic` keeps its explicit, clearly-labelled meaning (kept
+  deliberately, not folded into `none`).
+- Suite 133 tests.
+
 ### 2026-07-21 — Project-local config + verbose init-config
 **Changed**
 - Configuration is now **project-local and self-contained**: the app looks for

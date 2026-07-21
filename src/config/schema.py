@@ -48,9 +48,11 @@ SCHEMA: dict[str, dict[str, Field]] = {
     "camera": {
         "backend": Field(
             "str", "auto",
-            "Camera adapter backend. 'auto' picks the Pi camera or a USB camera; "
-            "'synthetic' bypasses hardware.",
-            choices=["usb", "picamera2", "auto", "synthetic"],
+            "Camera source. 'auto' picks the CSI (Pi ribbon) camera or a USB "
+            "camera; 'csi' = Pi ribbon camera; 'usb' = USB/webcam; 'synthetic' = "
+            "simulated data (clearly labelled); 'none' = no camera. "
+            "('picamera2' is accepted as an alias for 'csi'.)",
+            choices=["auto", "usb", "csi", "picamera2", "synthetic", "none"],
         ),
         "on_missing": Field(
             "str", "prompt",

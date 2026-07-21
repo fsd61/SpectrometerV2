@@ -21,10 +21,15 @@ def create_camera(backend: str = "usb", **kwargs: Any) -> CameraAdapter:
         return SyntheticCameraAdapter(**kwargs)
     if backend == "usb":
         return UsbCameraAdapter(**kwargs)
-    if backend == "picamera2":
+    if backend in ("csi", "picamera2"):   # 'picamera2' is a silent alias for 'csi'
         return Picamera2Adapter(**kwargs)
     if backend == "auto":
         return _auto(**kwargs)
+    if backend == "none":
+        raise CameraError(
+            "no camera is configured (camera.backend = 'none'). Use 'analyze' or "
+            "'generate-synthetic', or set camera.backend to auto/usb/csi/synthetic."
+        )
     raise CameraError(f"unknown camera backend: {backend!r}")
 
 

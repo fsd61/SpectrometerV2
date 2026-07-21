@@ -64,4 +64,4 @@ def detect_platform() -> PlatformInfo:
 def recommended_camera_backend(info: PlatformInfo | None = None) -> str:
     """Pick a sensible default camera backend for the platform."""
     info = info or detect_platform()
-    return "picamera2" if info.is_raspberry_pi else "usb"
+    return "csi" if info.is_raspberry_pi else "usb"

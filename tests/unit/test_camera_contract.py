@@ -29,6 +29,12 @@ def test_factory_selects_backend():
     assert isinstance(create_camera("synthetic"), SyntheticCameraAdapter)
     assert isinstance(create_camera("usb"), UsbCameraAdapter)
     assert isinstance(create_camera("picamera2"), Picamera2Adapter)
+    assert isinstance(create_camera("csi"), Picamera2Adapter)  # csi == picamera2
+
+
+def test_factory_none_backend_raises():
+    with pytest.raises(CameraError):
+        create_camera("none")
 
 
 def test_factory_unknown_backend_raises():
