@@ -69,6 +69,8 @@ def _dispatch(command: str, config, logger: logging.Logger, args) -> int:
         return commands.check_calibration(config, logger)
     if command == "stream":
         return commands.stream(config, logger, args.output, args.frames)
+    if command == "gui":
+        return commands.gui(config, logger)
     logger.error("Unknown command: %s", command)
     return 2
 

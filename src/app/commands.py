@@ -9,6 +9,7 @@ scientific algorithms live here.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 
 from acquisition.service import acquire_spectrum
@@ -184,6 +185,21 @@ def stream(config, logger: logging.Logger, output: str, frames: int) -> int:
     print(f"Streamed {frames} frames -> {path}")
     logger.info("Streamed %d frames -> %s", frames, path)
     return 0
+
+
+def gui(config, logger: logging.Logger) -> int:
+    """Launch the interactive GUI (needs the [gui] extra: PySide6 + pyqtgraph)."""
+    try:
+        from ui.qt.app import run_gui
+    except ImportError as exc:
+        logger.error("GUI unavailable: %s", exc)
+        print(
+            "The interactive GUI requires the [gui] extra (PySide6 + pyqtgraph), "
+            "which is not installed.\nInstall it with 'pip install -e .[gui]'.",
+            file=sys.stderr,
+        )
+        return 1
+    return run_gui(config, logger)
 
 
 def init_config(output=None, force: bool = False) -> int:

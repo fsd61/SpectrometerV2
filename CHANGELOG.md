@@ -6,6 +6,27 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — GUI Phase 7, milestone 1: app skeleton + `gui` command
+**Added**
+- `[gui]` optional extra (PySide6 + pyqtgraph).
+- `ui/live.py`: a **Qt-free** live-view core. `LiveParams` mirrors the original
+  tool's live controls (savgol order, peak min-distance, threshold, hold-peaks,
+  measure) with the same bounds, as pure testable adjusters. All GUI logic will
+  live here so it can be unit-tested without a display; the Qt widgets only
+  render what it produces.
+- `ui/qt/` PySide6 skeleton: `app.run_gui()` + a titled `MainWindow` (placeholder
+  central widget + status bar). This subpackage is the only place PySide6 is
+  imported.
+- New `spectrometerv2 gui` subcommand. It imports the Qt layer lazily and, if the
+  `[gui]` extra is missing, prints an actionable message (`pip install -e .[gui]`)
+  and exits non-zero — same pattern as the camera adapters.
+- 7 new tests (LiveParams clamping/toggles/kwargs; `gui` parsing; graceful
+  fallback forced independent of environment). Suite 154 tests.
+
+> Note: PySide6 is intentionally **not** in the `dev` extra — plain `pytest`
+> must not require Qt's system GL libraries. The offscreen widget tests
+> (milestone 7) will `importorskip` so they skip cleanly where Qt can't load.
+
 ### 2026-07-21 — Advanced analysis: simulated-annealing line fitting
 **Added**
 - `analysis/annealing.py`: `simulated_annealing()` — a global optimizer based on

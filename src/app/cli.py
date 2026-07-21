@@ -46,5 +46,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("generate-synthetic", help="Generate synthetic spectral test data, analyze, and save (CLI-004, SYN-001).")
     sub.add_parser("analyze", help="Analyze a saved spectrum CSV (use --input) (CLI-004).")
     sub.add_parser("stream", help="Play a time-varying synthetic stream and render a waterfall PNG.")
+    sub.add_parser("gui", help="Launch the interactive GUI (needs the [gui] extra).")
 
     return parser
