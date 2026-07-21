@@ -28,6 +28,23 @@ def test_cli_override_wins():
     assert cfg.get("logging", "level") == "ERROR"
 
 
+def test_choices_are_case_insensitive_and_normalized():
+    # Any case is accepted and normalized to the schema's canonical spelling.
+    for value in ("auto", "AuTo", "AUTO"):
+        cfg = load_config(overrides=[f"camera.backend={value}"])
+        assert cfg.get("camera", "backend") == "auto"
+    # logging.level's canonical spelling is upper-case.
+    cfg = load_config(overrides=["logging.level=info"])
+    assert cfg.get("logging", "level") == "INFO"
+
+
+def test_surrounding_whitespace_is_ignored(tmp_path):
+    ini = tmp_path / "ws.ini"
+    ini.write_text("[camera]\nbackend =   AuTo   \n", encoding="utf-8")
+    cfg = load_config(ini)
+    assert cfg.get("camera", "backend") == "auto"
+
+
 def test_invalid_choice_raises():
     with pytest.raises(ConfigError) as exc:
         load_config(overrides=["logging.level=LOUD"])

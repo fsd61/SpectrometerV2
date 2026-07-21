@@ -6,6 +6,16 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — Config values: case-insensitive choices + whitespace-tolerant
+**Fixed**
+- Choice values are now **case-insensitive** and normalized to the schema's
+  canonical spelling (e.g. `AUTO`/`AuTo` → `auto`, `info` → `INFO`). Previously
+  only the exact lower/upper form in the schema was accepted.
+- Surrounding **whitespace** in string and path values is stripped (from both
+  config files and `--set` overrides). Int/float/bool already tolerated it.
+- Genuinely invalid choices are still rejected with the same clear error. Suite
+  133 tests.
+
 ### 2026-07-21 — Fix camera backend: drop 'none', platform-aware auto, clearer errors
 **Changed / Fixed**
 - Removed `none` from the camera backend options (back to

@@ -146,15 +146,27 @@ def _coerce(field: Field, raw_value: Any, where: str, errors: list) -> Any:
             else:
                 raise ValueError(f"expected boolean, got {raw_value!r}")
         elif field.type == "path":
-            value = Path(str(raw_value))
+            value = Path(str(raw_value).strip())
         else:
-            value = str(raw_value)
+            value = str(raw_value).strip()
     except (ValueError, TypeError) as exc:
         errors.append(f"{where}: {exc}")
         return None
 
-    if field.choices is not None and value not in field.choices:
-        errors.append(f"{where}: {value!r} is not one of {list(field.choices)}")
+    if field.choices is not None:
+        if isinstance(value, str):
+            # Choice matching is case-insensitive; normalize to the canonical
+            # spelling defined in the schema (e.g. 'AUTO' -> 'auto', 'info' -> 'INFO').
+            canonical = next(
+                (c for c in field.choices if isinstance(c, str) and c.lower() == value.lower()),
+                None,
+            )
+            if canonical is not None:
+                value = canonical
+            else:
+                errors.append(f"{where}: {value!r} is not one of {list(field.choices)}")
+        elif value not in field.choices:
+            errors.append(f"{where}: {value!r} is not one of {list(field.choices)}")
     if field.min is not None and isinstance(value, (int, float)) and not isinstance(value, bool) and value < field.min:
         errors.append(f"{where}: {value} is below minimum {field.min}")
     if field.max is not None and isinstance(value, (int, float)) and not isinstance(value, bool) and value > field.max:
