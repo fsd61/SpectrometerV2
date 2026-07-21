@@ -6,6 +6,22 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — Advanced analysis: simulated-annealing line fitting
+**Added**
+- `analysis/annealing.py`: `simulated_annealing()` — a global optimizer based on
+  DiGennaro & Cowburn (J. Magn. Reson. 96, 582-588, 1992), with auto-tuned T0,
+  component-scaled Markov chains, a quench point, and threshold termination.
+  NumPy-only (no new dependency). Returns a typed `AnnealingResult`.
+- Convenience helpers `gaussian_sum()` and `sum_of_squares_objective()` for the
+  common "fit a sum of Gaussians to a spectrum" case.
+- Ported from `Docs/reference/Patch_-_Wtx_+_SA/`. Modernized: diagnostics go
+  through `logging` (not `print`); a local seeded RNG replaces global
+  `random`/`numpy` state, so seeded runs are reproducible and leak no state.
+- 8 new tests, including **parametric recovery** (known peaks at a set SNR →
+  recover centers/amplitudes within tolerance, across multiple seeds) and a
+  reproducibility check. This completes the advanced-analysis backlog item.
+  Suite 147 tests.
+
 ### 2026-07-21 — Advanced analysis: FFT + wavelet transforms
 **Added**
 - `analysis/transforms.py`: `fft_spectrum()` (one-sided FFT magnitude spectrum,

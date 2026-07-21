@@ -16,10 +16,17 @@ from .measurements import (
 )
 from .pipeline import Peak, SpectralAnalysis, analyze
 from .transforms import FftResult, WaveletResult, fft_spectrum, wavelet_transform
+from .annealing import (
+    AnnealingResult,
+    gaussian_sum,
+    simulated_annealing,
+    sum_of_squares_objective,
+)
 
 __all__ = [
     "peak_indexes", "savitzky_golay",
     "GaussianFit", "gaussian_fit", "half_max_fwhm", "estimate_noise", "estimate_snr",
     "Peak", "SpectralAnalysis", "analyze",
     "FftResult", "WaveletResult", "fft_spectrum", "wavelet_transform",
+    "AnnealingResult", "simulated_annealing", "gaussian_sum", "sum_of_squares_objective",
 ]

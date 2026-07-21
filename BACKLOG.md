@@ -32,8 +32,9 @@ document and a Presentation/Export section to the Architecture document.
   (Migration Plan Phase 6; Gate F).
 - **GUI** — the OpenCV/graph/waterfall interface and keybindings (Migration Plan
   Phase 7); the extracted `ui/` package is still a stub.
-- **Advanced analysis** — FFT and wavelet decomposition are **done**
-  (`analysis/transforms.py`; wavelet gated behind the `[wavelet]` extra).
-  Remaining: **simulated-annealing** line fitting from the
-  `Docs/reference/Patch_-_Wtx_+_SA` material (stochastic — needs seeded,
-  tolerance-based tests rather than exact golden matches).
+- **Advanced analysis** — **done.** FFT and wavelet decomposition
+  (`analysis/transforms.py`; wavelet gated behind the `[wavelet]` extra) and
+  simulated-annealing line fitting (`analysis/annealing.py`, NumPy-only) are all
+  ported from the `Docs/reference/Patch_-_Wtx_+_SA` material. SA is validated by
+  seeded parametric recovery tests (known peaks + set SNR → recover within
+  tolerance, across multiple seeds).
