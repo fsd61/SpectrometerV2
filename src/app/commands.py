@@ -16,7 +16,7 @@ from analysis.pipeline import analyze
 from calibration.persistence import load_calibration_points
 from calibration.wavelength import calibrate
 from cameras.factory import create_camera_from_config
-from config import render_ini, user_config_path
+from config import render_ini, config_path, find_project_root
 from data.sinks import CsvSpectrumSink, read_csv_spectrum
 from .hardware import select_camera
 from errors import PySpectrometerError
@@ -186,18 +186,57 @@ def stream(config, logger: logging.Logger, output: str, frames: int) -> int:
     return 0
 
 
-def init_config(output: str = None, force: bool = False) -> int:
-    """Write a fully-documented config.ini (generated from the schema)."""
-    if output and output != ".":
+def init_config(output=None, force: bool = False) -> int:
+    """Write a documented config/config.ini, narrating each step (verbose setup)."""
+    import logging as _logging
+    from config.schema import SCHEMA
+    from platforms import detect_platform, recommended_camera_backend
+
+    _REVIEW = [
+        ("camera", "backend", "how the camera is chosen: auto / usb / picamera2 / synthetic"),
+        ("camera", "on_missing", "what to do when 'auto' finds no camera"),
+        ("camera", "device_index", "which USB camera, if backend = usb"),
+        ("calibration", "file", "where the wavelength calibration is stored"),
+        ("logging", "level", "log verbosity (DEBUG / INFO / WARNING / ...)"),
+        ("synthetic", "seed", "seed for reproducible synthetic test data"),
+    ]
+
+    print("SpectrometerV2 - init-config")
+    print(f">> Project root:      {find_project_root()}")
+
+    if output and output not in (".", ""):
         target = Path(output)
         if target.is_dir():
             target = target / "config.ini"
     else:
-        target = user_config_path()
+        target = config_path()
+    cdir = target.parent
+    print(f">> Config directory:  {cdir}  ({'exists' if cdir.exists() else 'will be created'})")
+
+    info = detect_platform()
+    tag = " [Raspberry Pi]" if info.is_raspberry_pi else ""
+    print(f">> Platform:          {info.system} ({info.machine}){tag}, Python {info.python_version}")
+    print(f">> Suggested camera:  {recommended_camera_backend(info)} "
+          "(run 'verify-hardware' to test the actual device)")
+
     if target.exists() and not force:
-        print(f"{target} already exists - use --force to overwrite.")
+        print(f">> Target file:       {target}  (already exists)")
+        print("   Left untouched. Re-run with --force to regenerate it from the schema.")
         return 1
-    target.parent.mkdir(parents=True, exist_ok=True)
+
+    action = "Regenerated" if target.exists() else "Wrote"
+    cdir.mkdir(parents=True, exist_ok=True)
     target.write_text(render_ini(), encoding="utf-8")
-    print(f"Wrote configuration to {target}")
+    n_keys = sum(len(v) for v in SCHEMA.values())
+    print(f">> {action}:           {target}  ({n_keys} settings in {len(SCHEMA)} sections)")
+
+    print("")
+    print("Settings you'll most likely want to review:")
+    for section, key, why in _REVIEW:
+        default = SCHEMA[section][key].default
+        print(f"   [{section}] {key} = {default}".ljust(50) + f"- {why}")
+    print("")
+    print(f">> Next: review {target}, then run 'spectrometerv2 validate-config'.")
+    print(">> Alternate setups: keep full config files in config/ and select one with")
+    print("   --config config/<name>.ini")
     return 0

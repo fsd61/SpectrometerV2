@@ -35,7 +35,7 @@ src/                  Application sources (flat layout — no wrapper package)
   ui/           GUI + plotting
   errors.py         application exception hierarchy
   logging_setup.py  structured rotating logging        (LOG-*)
-config/         default.ini                            (externalized config)
+config/         config.ini (+ alternates)              (externalized config)
 tests/          unit / integration / regression / hardware / platform
 Docs/           engineering documents + reference papers
 Original_Pyspectrometer2/   Preserved upstream baseline (Les Wright)
@@ -56,14 +56,14 @@ pluggable persistence sink (Phase 6).
 
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
 behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
-112 tests, installable via `pip install -e .`.
+131 tests, installable via `pip install -e .`.
 
 ## Usage
 
 ```bash
 pip install -e .[dev]
 
-# One-time: create your documented config (~/.config/spectrometerv2/config.ini)
+# One-time: create your documented config (config/config.ini)
 spectrometerv2 init-config
 
 # From then on it's auto-loaded — no --config needed
@@ -86,12 +86,14 @@ pytest
 
 ## Configuration
 
-Configuration is a single INI file. Run `spectrometerv2 init-config` to write a
-fully-commented `~/.config/spectrometerv2/config.ini` (generated from the schema,
-so every key is documented and defaults are always current). It's auto-discovered
-at startup — a project-local `./spectrometerv2.ini` also works, and `--config PATH`
-overrides both. `config/config.ini.example` in the repo is a browsable copy of the
-same file.
+Everything lives in the project directory, so the whole thing is self-contained
+and movable. Configuration is a single INI file in the project's `config/`
+folder. Run `spectrometerv2 init-config` to write a fully-commented
+`config/config.ini` (generated from the schema, so every key is documented). It's
+auto-discovered at startup — resolved from the project root, so it works from any
+subdirectory — and `--config PATH` overrides it. Keep alternate complete configs
+alongside it (e.g. `config/lab.ini`) and select one with `--config config/lab.ini`.
+`config/config.ini.example` is a browsable copy.
 
 ## License
 

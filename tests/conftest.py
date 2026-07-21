@@ -4,7 +4,6 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _isolated_user_config(monkeypatch, tmp_path):
-    """Point XDG_CONFIG_HOME at an empty per-test dir so config auto-discovery
-    never picks up a real user config on the host machine."""
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+def _no_config_autodiscovery(monkeypatch):
+    """main() must not pick up a real config/config.ini during tests."""
+    monkeypatch.setattr("app.main.discover_config_path", lambda: None)

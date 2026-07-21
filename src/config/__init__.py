@@ -6,7 +6,7 @@ command-line overrides, and meaningful validation diagnostics.
 
 from .schema import SCHEMA, Field
 from .loader import Config, load_config
-from .generate import render_ini, discover_config_path, user_config_path
+from .generate import render_ini, discover_config_path, config_path, config_dir, find_project_root
 
 __all__ = ["SCHEMA", "Field", "Config", "load_config",
-           "render_ini", "discover_config_path", "user_config_path"]
+           "render_ini", "discover_config_path", "config_path", "config_dir", "find_project_root"]

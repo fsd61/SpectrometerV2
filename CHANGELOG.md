@@ -6,6 +6,21 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — Project-local config + verbose init-config
+**Changed**
+- Configuration is now **project-local and self-contained**: the app looks for
+  `config/config.ini`, resolved from the project root (found by walking up for
+  `pyproject.toml`, so it works from any subdirectory). The `~/.config` (XDG)
+  location is gone — everything lives in the movable project directory.
+- `init-config` is now **verbose**: it narrates each step (project root, config
+  directory, platform, suggested camera backend, what it wrote) and ends with a
+  short "settings you'll most likely want to review" list, so first-run is
+  self-explanatory without interactive prompts.
+- Alternate setups are explicit files in `config/` (e.g. `config/lab.ini`),
+  selected with `--config config/lab.ini`.
+- `src/config/generate.py`: `find_project_root`, `config_path`, `config_dir`;
+  updated tests (project-local discovery) and README. Suite 131 tests.
+
 ### 2026-07-19 — Single-file configuration (init-config + auto-discovery)
 **Added**
 - `init-config` command — writes a fully-commented
