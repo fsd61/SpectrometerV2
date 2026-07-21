@@ -10,6 +10,16 @@ needs only Python and NumPy; camera support is optional and platform-specific.
 - A camera backend only if you want live acquisition (see below). The synthetic
   backend and all analysis run with no camera at all.
 
+### Raspberry Pi hardware
+
+A **Raspberry Pi 4 running 64-bit Raspberry Pi OS is recommended**. On 64-bit
+Pi OS, NumPy, OpenCV, and picamera2 all install from prebuilt `aarch64` wheels,
+so setup is fast and none of the 32-bit workarounds below apply. A **Pi 3B
+works** too, but expect the slower, 32-bit install path (see the NumPy/OpenBLAS
+note under Raspberry Pi prerequisites). The CSI camera stack (e.g. the IMX219)
+is identical on both. Per-frame processing is light, so real-time capture runs
+comfortably on either.
+
 ## Install
 
 ```bash

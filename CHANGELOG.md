@@ -6,6 +6,25 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — Advanced analysis: FFT + wavelet transforms
+**Added**
+- `analysis/transforms.py`: `fft_spectrum()` (one-sided FFT magnitude spectrum,
+  NumPy-only, always available) and `wavelet_transform()` (discrete wavelet
+  decomposition via PyWavelets). Both return typed result dataclasses
+  (`FftResult`, `WaveletResult`) and are exported from `analysis`.
+- PyWavelets is an **optional** dependency behind the new `[wavelet]` extra and
+  is imported lazily with an actionable install message; FFT needs nothing
+  beyond NumPy.
+- Ported from `Docs/reference/Patch_-_Wtx_+_SA/`. Simulated-annealing line
+  fitting from the same material remains on the backlog (stochastic — needs
+  seeded, tolerance-based tests).
+- 6 new unit tests (known-frequency recovery, DC component, wavelet
+  reconstruction, level clamping, missing-dependency message). Suite 139 tests.
+
+**Docs**
+- INSTALL.md: added a Raspberry Pi hardware note — Pi 4 on 64-bit OS recommended
+  (prebuilt aarch64 wheels); Pi 3B works via the 32-bit path.
+
 ### 2026-07-21 — Config values: case-insensitive choices + whitespace-tolerant
 **Fixed**
 - Choice values are now **case-insensitive** and normalized to the schema's

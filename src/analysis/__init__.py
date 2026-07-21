@@ -15,9 +15,11 @@ from .measurements import (
     half_max_fwhm,
 )
 from .pipeline import Peak, SpectralAnalysis, analyze
+from .transforms import FftResult, WaveletResult, fft_spectrum, wavelet_transform
 
 __all__ = [
     "peak_indexes", "savitzky_golay",
     "GaussianFit", "gaussian_fit", "half_max_fwhm", "estimate_noise", "estimate_snr",
     "Peak", "SpectralAnalysis", "analyze",
+    "FftResult", "WaveletResult", "fft_spectrum", "wavelet_transform",
 ]
