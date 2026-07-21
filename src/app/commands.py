@@ -62,10 +62,6 @@ def _maybe_plot(spectrum, result, output: str, name: str, plot: bool, logger: lo
 
 def test_camera(config, logger: logging.Logger) -> int:
     backend = config.get("camera", "backend")
-    if backend == "none":
-        print("Camera is disabled (backend = none) - nothing to test.")
-        logger.info("Camera disabled (backend=none)")
-        return 0
     logger.info("Testing camera backend=%s", backend)
     camera = create_camera_from_config(config.section("camera"))
     camera.initialize()
@@ -87,10 +83,6 @@ def verify_hardware(config, logger: logging.Logger) -> int:
     logger.info("Platform: %s %s pi=%s", info.system, info.machine, info.is_raspberry_pi)
 
     backend = config.get("camera", "backend")
-    if backend == "none":
-        print("Camera [none]: disabled (no camera configured)")
-        logger.info("Camera disabled (backend=none)")
-        return 0
     camera = create_camera_from_config(config.section("camera"))
     try:
         camera.initialize()
@@ -201,7 +193,7 @@ def init_config(output=None, force: bool = False) -> int:
     from platforms import detect_platform, recommended_camera_backend
 
     _REVIEW = [
-        ("camera", "backend", "camera source: auto / usb / csi / synthetic / none"),
+        ("camera", "backend", "camera source: auto / usb / csi / synthetic"),
         ("camera", "on_missing", "what to do when 'auto' finds no camera"),
         ("camera", "device_index", "which USB camera, if backend = usb"),
         ("calibration", "file", "where the wavelength calibration is stored"),

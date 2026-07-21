@@ -25,11 +25,6 @@ def create_camera(backend: str = "usb", **kwargs: Any) -> CameraAdapter:
         return Picamera2Adapter(**kwargs)
     if backend == "auto":
         return _auto(**kwargs)
-    if backend == "none":
-        raise CameraError(
-            "no camera is configured (camera.backend = 'none'). Use 'analyze' or "
-            "'generate-synthetic', or set camera.backend to auto/usb/csi/synthetic."
-        )
     raise CameraError(f"unknown camera backend: {backend!r}")
 
 
@@ -47,10 +42,14 @@ def create_camera_from_config(camera_cfg: Mapping[str, Any], **overrides: Any) -
 
 
 def _auto(**kwargs: Any) -> CameraAdapter:
-    """Prefer the Pi camera when ``picamera2`` is importable, else USB."""
-    try:
-        import picamera2  # noqa: F401
-        return Picamera2Adapter(**{k: v for k, v in kwargs.items() if k in ("width", "height", "fps", "gain")})
-    except ImportError:
-        return UsbCameraAdapter(**{k: v for k, v in kwargs.items()
-                                   if k in ("device_index", "width", "height", "fps", "api_preference")})
+    """On a Raspberry Pi prefer the CSI camera (picamera2); otherwise USB."""
+    from platforms import detect_platform
+    if detect_platform().is_raspberry_pi:
+        try:
+            import picamera2  # noqa: F401
+            return Picamera2Adapter(**{k: v for k, v in kwargs.items()
+                                       if k in ("width", "height", "fps", "gain")})
+        except ImportError:
+            pass  # on a Pi but picamera2 not installed -> fall through to USB
+    return UsbCameraAdapter(**{k: v for k, v in kwargs.items()
+                               if k in ("device_index", "width", "height", "fps", "api_preference")})

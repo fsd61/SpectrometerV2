@@ -29,7 +29,11 @@ class UsbCameraAdapter(CameraAdapter):
         try:
             import cv2  # noqa: PLC0415 (lazy on purpose)
         except ImportError as exc:
-            raise CameraError("OpenCV (opencv-python) is required for the USB camera") from exc
+            raise CameraError(
+                "OpenCV is required for the USB camera but is not installed. "
+                "Install it with 'pip install -e .[usb]' (or 'pip install opencv-python'); "
+                "on a Raspberry Pi use 'sudo apt install -y python3-opencv'."
+            ) from exc
         return cv2
 
     def initialize(self) -> None:

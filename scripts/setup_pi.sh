@@ -26,7 +26,7 @@ sudo apt-get update
 # the dependency is obvious and belt-and-suspenders. matplotlib enables --plot
 # and the waterfall.
 sudo apt-get install -y \
-  python3-venv python3-picamera2 python3-numpy python3-matplotlib libopenblas0
+  python3-venv python3-picamera2 python3-opencv python3-numpy python3-matplotlib libopenblas0
 
 echo ">> Creating virtual environment (.venv, able to see the apt packages)..."
 python3 -m venv --system-site-packages .venv

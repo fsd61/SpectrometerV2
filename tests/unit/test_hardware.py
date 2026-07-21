@@ -60,7 +60,3 @@ def test_auto_prompt_no_raises():
         hw.select_camera(_cfg(camera__backend="auto", camera__on_missing="prompt"),
                          LOG, isatty=True, prompt=lambda: False)
 
-
-def test_none_backend_raises():
-    with pytest.raises(CameraError):
-        hw.select_camera(_cfg(camera__backend="none"), LOG)

@@ -6,6 +6,20 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — Fix camera backend: drop 'none', platform-aware auto, clearer errors
+**Changed / Fixed**
+- Removed `none` from the camera backend options (back to
+  **`auto | usb | csi | synthetic`**; `picamera2` alias kept).
+- **`auto` is now platform-aware**: on a Raspberry Pi it prefers the CSI camera
+  (picamera2) and only falls back to USB if picamera2 is unavailable; off a Pi it
+  uses USB. Previously it chose purely by whether `picamera2` imported, which
+  could send a Pi down the USB path.
+- Missing-library errors are now **actionable**: the USB path explains how to
+  install OpenCV (`pip install -e .[usb]`, or `apt install python3-opencv` on a
+  Pi); the CSI path points to `apt install python3-picamera2` + a
+  `--system-site-packages` venv.
+- `scripts/setup_pi.sh` now also installs `python3-opencv`. Suite 131 tests.
+
 ### 2026-07-21 — Camera backends: rename picamera2 → csi, add none
 **Changed**
 - Camera `backend` options are now **`auto | usb | csi | synthetic | none`**.

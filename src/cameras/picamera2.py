@@ -26,7 +26,11 @@ class Picamera2Adapter(CameraAdapter):
         try:
             from picamera2 import Picamera2  # noqa: PLC0415 (lazy, Pi-only)
         except ImportError as exc:
-            raise CameraError("picamera2 is required for the Raspberry Pi camera") from exc
+            raise CameraError(
+                "picamera2 is required for the CSI (Raspberry Pi) camera but is not "
+                "installed. Install it with 'sudo apt install -y python3-picamera2' and "
+                "use a virtualenv created with '--system-site-packages'."
+            ) from exc
         return Picamera2
 
     def initialize(self) -> None:

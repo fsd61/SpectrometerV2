@@ -77,11 +77,6 @@ def select_camera(config, logger: logging.Logger, *, isatty: Optional[bool] = No
     backend = str(config.get("camera", "backend")).lower()
     section = config.section("camera")
 
-    if backend == "none":
-        raise CameraError(
-            "no camera is configured (camera.backend = 'none'). Use 'analyze' or "
-            "'generate-synthetic', or set camera.backend to auto/usb/csi/synthetic."
-        )
     if backend != "auto":
         camera = create_camera_from_config(section)
         camera.initialize()  # explicit choice: any failure propagates as an error
