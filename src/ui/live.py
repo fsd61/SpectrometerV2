@@ -15,6 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Protocol, Tuple
 
+import numpy as np
+
 from acquisition.service import acquire_spectrum
 from analysis.pipeline import SpectralAnalysis, analyze
 from cameras.base import CameraAdapter
@@ -206,3 +208,42 @@ class LiveEngine:
 
     def close(self) -> None:
         self.source.close()
+
+
+# --------------------------------------------------------------------------- #
+# Waterfall history buffer (Qt-free)
+# --------------------------------------------------------------------------- #
+class WaterfallBuffer:
+    """A fixed-height scrolling image of recent spectra (rows = time).
+
+    The newest spectrum is row 0; older frames scroll toward the last row and
+    fall off. The spectral width is locked on the first push. Negative values are
+    floored at zero, matching the spectrum display (a detector reads no negative
+    light). Qt-free so it is unit tested without a display; the widget just paints
+    :meth:`image`.
+    """
+
+    def __init__(self, height: int = 256):
+        if height < 1:
+            raise ValueError("height must be >= 1")
+        self.height = int(height)
+        self.width: Optional[int] = None
+        self._img: Optional[np.ndarray] = None
+
+    def push(self, intensities) -> None:
+        row = np.clip(np.asarray(intensities, dtype=float), 0.0, None)
+        if self._img is None:
+            self.width = len(row)
+            self._img = np.zeros((self.height, self.width), dtype=float)
+        w = min(self.width, len(row))
+        self._img[1:] = self._img[:-1]      # scroll older frames down
+        self._img[0, :] = 0.0
+        self._img[0, :w] = row[:w]          # newest at the top
+
+    def image(self) -> Optional[np.ndarray]:
+        """The current 2-D image (rows = time, newest first), or None if empty."""
+        return self._img
+
+    def clear(self) -> None:
+        self.width = None
+        self._img = None

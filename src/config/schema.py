@@ -71,6 +71,11 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "Target refresh rate for the live GUI view, frames per second.",
             min=0.1, max=120.0,
         ),
+        "waterfall_frames": Field(
+            "int", 256,
+            "Number of recent frames (time rows) kept in the live waterfall.",
+            min=10, max=4000,
+        ),
     },
     "processing": {
         "slice_row": Field(

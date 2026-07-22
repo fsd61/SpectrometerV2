@@ -63,6 +63,10 @@ height = 1080
 #   (type=float; default=15.0; min=0.1; max=120.0)
 fps = 15.0
 
+# Number of recent frames (time rows) kept in the live waterfall.
+#   (type=int; default=256; min=10; max=4000)
+waterfall_frames = 256
+
 
 [processing]
 # Sensor row used for the 1-D spectral slice; -1 = auto/center.

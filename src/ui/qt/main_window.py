@@ -11,9 +11,12 @@ import logging
 
 from PySide6 import QtWidgets
 
+from PySide6 import QtCore
+
 from ui.live import LiveEngine, LiveParams, build_frame_source
 from .controller import CaptureThread
 from .spectrum_view import SpectrumView
+from .waterfall_view import WaterfallView
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -27,8 +30,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("SpectrometerV2")
         self.resize(1100, 700)
 
+        frames = 256
+        if config is not None:
+            frames = int(config.section("gui").get("waterfall_frames", 256))
+
         self._view = SpectrumView()
-        self.setCentralWidget(self._view)
+        self._waterfall = WaterfallView(frames=frames)
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
+        splitter.addWidget(self._view)
+        splitter.addWidget(self._waterfall)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        self.setCentralWidget(splitter)
 
         self._thread: CaptureThread | None = None
         self._start_capture()
@@ -55,6 +68,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_frame(self, spectrum, result) -> None:
         self._view.update_spectrum(spectrum, result)
+        self._waterfall.update_spectrum(spectrum, result)
         self.statusBar().showMessage(
             f"Live — {len(spectrum)} samples, {len(result.peaks)} peaks"
         )

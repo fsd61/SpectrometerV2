@@ -6,6 +6,19 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — GUI Phase 7, milestone 3: live waterfall
+**Added**
+- Qt-free `WaterfallBuffer` in `ui/live.py`: a fixed-height scrolling image of
+  recent spectra (rows = time, newest first), width locked on first push,
+  negatives floored to match the trace. Unit-tested without a display.
+- `ui/qt/waterfall_view.py`: a pyqtgraph image widget (viridis, newest at top)
+  painting the buffer. The main window now stacks the spectrum plot over the
+  waterfall in a vertical splitter and pushes each frame to both.
+- New `[gui].waterfall_frames` config key (history depth); `config.ini.example`
+  regenerated.
+- 7 new buffer tests (scroll order, eviction, width lock/clip/pad, flooring,
+  clear). Suite 166 tests.
+
 ### 2026-07-21 — GUI Phase 7, milestone 2: live spectrum plot
 **Added**
 - Qt-free live core in `ui/live.py`: a `FrameSource` protocol with
