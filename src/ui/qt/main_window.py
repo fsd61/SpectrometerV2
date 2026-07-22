@@ -49,8 +49,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self._dock = ControlDock(self._params)
         self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self._dock)
 
+        self._build_menu()
+
         self._thread: CaptureThread | None = None
         self._start_capture()
+
+    def _build_menu(self) -> None:
+        view_menu = self.menuBar().addMenu("&View")
+        # Qt's built-in dock toggle: re-checks/re-shows the dock after it's closed.
+        toggle = self._dock.toggleViewAction()
+        toggle.setText("Controls panel")
+        toggle.setShortcut("Ctrl+B")
+        view_menu.addAction(toggle)
 
     # ------------------------------------------------------------------ #
     def _start_capture(self) -> None:

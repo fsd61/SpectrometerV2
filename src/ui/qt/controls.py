@@ -13,6 +13,28 @@ from ui.live import LiveParams, peak_readout_rows
 
 _COLUMNS = ["#", "Position", "Intensity", "FWHM", "SNR"]
 
+_SMOOTH_TIP = (
+    "Savitzky–Golay smoothing polynomial order.\n"
+    "Lower = heavier smoothing (removes noise but can broaden or flatten "
+    "peaks); higher = lighter smoothing (preserves sharp peaks but keeps more "
+    "noise). Smooth just enough that noise stops producing false peaks."
+)
+_DIST_TIP = (
+    "Minimum separation between detected peaks, in pixels.\n"
+    "Increase to stop one broad line (or a noisy top) registering as several "
+    "peaks; decrease to resolve closely-spaced lines."
+)
+_THRESH_TIP = (
+    "Peak-detection threshold, as a fraction (0–1) of the tallest peak.\n"
+    "A maximum must rise above this to count as a peak. Raise it to ignore "
+    "small noise peaks; lower it to catch weak lines."
+)
+_MEASURE_TIP = (
+    "Measure each peak's FWHM (line width) and SNR via a Gaussian fit.\n"
+    "Slightly more work per frame — turn off for maximum frame rate when a "
+    "frame has many peaks (e.g. on a Raspberry Pi)."
+)
+
 
 class ControlDock(QtWidgets.QDockWidget):
     """Right-hand dock with live analysis controls and a peak readout table."""
@@ -27,19 +49,24 @@ class ControlDock(QtWidgets.QDockWidget):
         form = QtWidgets.QFormLayout()
         self._smooth_lbl = QtWidgets.QLabel(str(params.savgol_order))
         self._smooth = self._slider(0, 15, params.savgol_order, self._on_smooth)
-        form.addRow("Smoothing (order)", self._row(self._smooth, self._smooth_lbl))
+        form.addRow(self._field_label("Smoothing (order)", _SMOOTH_TIP),
+                    self._row(self._smooth, self._smooth_lbl, _SMOOTH_TIP))
 
         self._dist_lbl = QtWidgets.QLabel(str(params.peak_min_dist))
         self._dist = self._slider(0, 100, params.peak_min_dist, self._on_dist)
-        form.addRow("Peak min distance", self._row(self._dist, self._dist_lbl))
+        form.addRow(self._field_label("Peak min distance", _DIST_TIP),
+                    self._row(self._dist, self._dist_lbl, _DIST_TIP))
 
         self._thr_lbl = QtWidgets.QLabel(f"{params.peak_thres:.2f}")
         self._thr = self._slider(0, 100, round(params.peak_thres * 100), self._on_thr)
-        form.addRow("Threshold", self._row(self._thr, self._thr_lbl))
+        form.addRow(self._field_label("Threshold", _THRESH_TIP),
+                    self._row(self._thr, self._thr_lbl, _THRESH_TIP))
         layout.addLayout(form)
 
         self._measure = QtWidgets.QCheckBox("Measure FWHM / SNR")
         self._measure.setChecked(params.measure)
+        self._measure.setToolTip(_MEASURE_TIP)
+        self._measure.setStatusTip(_MEASURE_TIP.replace("\n", " "))
         self._measure.toggled.connect(self._on_measure)
         layout.addWidget(self._measure)
 
@@ -53,6 +80,13 @@ class ControlDock(QtWidgets.QDockWidget):
 
     # ------------------------------------------------------------------ #
     @staticmethod
+    def _field_label(text, tip):
+        lbl = QtWidgets.QLabel(text)
+        lbl.setToolTip(tip)
+        lbl.setStatusTip(tip.replace("\n", " "))
+        return lbl
+
+    @staticmethod
     def _slider(lo, hi, value, handler):
         s = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         s.setRange(lo, hi)
@@ -61,7 +95,7 @@ class ControlDock(QtWidgets.QDockWidget):
         return s
 
     @staticmethod
-    def _row(slider, label):
+    def _row(slider, label, tip=None):
         w = QtWidgets.QWidget()
         h = QtWidgets.QHBoxLayout(w)
         h.setContentsMargins(0, 0, 0, 0)
@@ -69,6 +103,9 @@ class ControlDock(QtWidgets.QDockWidget):
         label.setMinimumWidth(36)
         label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         h.addWidget(label)
+        if tip:
+            slider.setToolTip(tip)
+            slider.setStatusTip(tip.replace("\n", " "))
         return w
 
     def _on_smooth(self, v):
