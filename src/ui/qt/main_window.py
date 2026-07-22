@@ -1,24 +1,37 @@
 """Main application window (Migration Plan Phase 7).
 
-Milestone 2: hosts the live spectrum plot and drives a capture thread over the
-active frame source (synthetic by default). Later milestones add the waterfall,
-control dock, menu/toolbar, and click-to-calibrate.
+Milestone 5: a full menu bar + toolbar, the 13 original PySpectrometer2 keyboard
+shortcuts (h s c x m p o l i k u j q), and snapshot/export wired through the
+pluggable data sink. Earlier milestones added the live plot, scrolling
+waterfall, control dock + readouts, and the synthetic-source panel.
+
+The set of shortcuts, their menus, and their labels live in the Qt-free
+``ui.live.LIVE_SHORTCUTS`` registry; this window just builds Qt actions from it
+and binds each to a handler, so the shortcut table is unit-tested without a
+display.
 """
 
 from __future__ import annotations
 
 import logging
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
-from PySide6 import QtCore
-
-from ui.live import LiveEngine, LiveParams, SyntheticFrameSource, build_frame_source
+from ui.live import (
+    LIVE_SHORTCUTS,
+    LiveEngine,
+    LiveParams,
+    SyntheticFrameSource,
+    build_frame_source,
+    snapshot_spectrum,
+)
 from .controller import CaptureThread
 from .controls import ControlDock
 from .spectrum_view import SpectrumView
 from .synthetic_controls import SyntheticDock
 from .waterfall_view import WaterfallView
+
+_MENU_ORDER = ("File", "Calibrate", "Analysis")
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -33,10 +46,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(1100, 700)
 
         frames = 256
+        self._snapshot_dir = "snapshots"
         if config is not None:
-            frames = int(config.section("gui").get("waterfall_frames", 256))
+            gui = config.section("gui")
+            frames = int(gui.get("waterfall_frames", 256))
+            self._snapshot_dir = str(gui.get("snapshot_dir", "snapshots"))
 
         self._params = LiveParams(measure=True)
+        self._last_spectrum = None
+        self._cal_points: list[int] = []      # pixel picks; click capture = M6
+        self._actions: dict[str, QtGui.QAction] = {}
 
         self._view = SpectrumView()
         self._waterfall = WaterfallView(frames=frames)
@@ -47,23 +66,167 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.setStretchFactor(1, 2)
         self.setCentralWidget(splitter)
 
-        self._dock = ControlDock(self._params)
+        self._dock = ControlDock(self._params, on_change=self._sync_controls)
         self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self._dock)
         self._synth_dock: SyntheticDock | None = None
 
         self._build_menu()
+        self._build_toolbar()
+        self._sync_action_checks()
 
         self._thread: CaptureThread | None = None
         self._start_capture()
 
+    # ------------------------------------------------------------------ #
+    # Menu / toolbar construction (driven by ui.live.LIVE_SHORTCUTS)
+    # ------------------------------------------------------------------ #
+    def _make_action(self, spec) -> QtGui.QAction:
+        act = QtGui.QAction(spec.label, self)
+        act.setShortcut(QtGui.QKeySequence(spec.key))
+        act.setToolTip(f"{spec.tip}  ({spec.key})")
+        act.setStatusTip(spec.tip)
+        if spec.checkable:
+            act.setCheckable(True)
+        handler = getattr(self, spec.handler)
+        act.triggered.connect(lambda *_ignore, h=handler: h())
+        self._actions[spec.key] = act
+        return act
+
     def _build_menu(self) -> None:
-        self._view_menu = self.menuBar().addMenu("&View")
-        # Qt's built-in dock toggle: re-checks/re-shows the dock after it's closed.
+        bar = self.menuBar()
+        menus = {name: bar.addMenu(f"&{name}") for name in _MENU_ORDER}
+        prev_menu = None
+        for spec in LIVE_SHORTCUTS:
+            act = self._make_action(spec)
+            if prev_menu == spec.menu and spec.handler == "act_quit":
+                menus[spec.menu].addSeparator()
+            menus[spec.menu].addAction(act)
+            prev_menu = spec.menu
+
+        self._view_menu = bar.addMenu("&View")
         toggle = self._dock.toggleViewAction()
         toggle.setText("Controls panel")
         toggle.setShortcut("Ctrl+B")
         self._view_menu.addAction(toggle)
 
+        help_menu = bar.addMenu("&Help")
+        sc = QtGui.QAction("Keyboard shortcuts", self)
+        sc.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key.Key_F1))
+        sc.triggered.connect(self._show_shortcuts)
+        help_menu.addAction(sc)
+
+    def _build_toolbar(self) -> None:
+        tb = QtWidgets.QToolBar("Main")
+        tb.setObjectName("MainToolbar")
+        tb.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.addToolBar(tb)
+        self._toolbar = tb
+        prev_menu = None
+        for spec in LIVE_SHORTCUTS:
+            if not spec.toolbar:
+                continue
+            if prev_menu is not None and spec.menu != prev_menu:
+                tb.addSeparator()
+            tb.addAction(self._actions[spec.key])
+            prev_menu = spec.menu
+        self._view_menu.addAction(tb.toggleViewAction())
+
+    def _show_shortcuts(self) -> None:
+        rows = "\n".join(f"  {s.key}   {s.label}" for s in LIVE_SHORTCUTS)
+        QtWidgets.QMessageBox.information(
+            self, "Keyboard shortcuts",
+            "SpectrometerV2 live keys (from PySpectrometer2):\n\n" + rows,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Keeping menu / toolbar toggles in sync with the shared LiveParams
+    # ------------------------------------------------------------------ #
+    def _sync_action_checks(self) -> None:
+        for key, attr in (("h", "hold_peaks"), ("m", "measure"), ("p", "pixel_mode")):
+            act = self._actions.get(key)
+            if act is not None:
+                act.setChecked(bool(getattr(self._params, attr)))
+
+    def _sync_controls(self) -> None:
+        """Callback from the control dock: mirror its edits into the toggles."""
+        self._sync_action_checks()
+
+    def _after_param_change(self, message: str) -> None:
+        self._sync_action_checks()
+        self._dock.sync_from_params()
+        self.statusBar().showMessage(message)
+
+    # ------------------------------------------------------------------ #
+    # Shortcut handlers (bound by key in LIVE_SHORTCUTS)
+    # ------------------------------------------------------------------ #
+    def act_snapshot(self) -> None:
+        if self._last_spectrum is None:
+            self.statusBar().showMessage("Nothing to snapshot yet.")
+            return
+        try:
+            path = snapshot_spectrum(self._last_spectrum, self._snapshot_dir)
+        except Exception as exc:  # noqa: BLE001 - report, keep window alive
+            self.statusBar().showMessage(f"Snapshot failed: {exc}")
+            self.logger.error("Snapshot failed: %s", exc)
+            return
+        self.statusBar().showMessage(f"Saved snapshot → {path}")
+        self.logger.info("Saved snapshot → %s", path)
+
+    def act_quit(self) -> None:
+        self.close()
+
+    def act_calibrate(self) -> None:
+        n = len(self._cal_points)
+        if n < 2:
+            self.statusBar().showMessage(
+                f"Calibration needs picked points — {n} pending. "
+                "Click-to-pick lands in M6."
+            )
+            return
+        self.statusBar().showMessage(f"{n} calibration points pending (fit wiring: M6).")
+
+    def act_clear_calibration(self) -> None:
+        self._cal_points.clear()
+        self.statusBar().showMessage("Cleared pending calibration points.")
+
+    def act_toggle_hold(self) -> None:
+        state = self._params.toggle_hold_peaks()
+        self._after_param_change(f"Hold peaks {'on' if state else 'off'}.")
+
+    def act_toggle_measure(self) -> None:
+        state = self._params.toggle_measure()
+        self._after_param_change(f"Measure FWHM/SNR {'on' if state else 'off'}.")
+
+    def act_toggle_pixel(self) -> None:
+        state = self._params.toggle_pixel_mode()
+        self._after_param_change(f"Pixel positions {'on' if state else 'off'}.")
+
+    def act_savgol_up(self) -> None:
+        self._params.adjust_savgol_order(1)
+        self._after_param_change(f"Smoothing order = {self._params.savgol_order}")
+
+    def act_savgol_down(self) -> None:
+        self._params.adjust_savgol_order(-1)
+        self._after_param_change(f"Smoothing order = {self._params.savgol_order}")
+
+    def act_mindist_up(self) -> None:
+        self._params.adjust_peak_min_dist(1)
+        self._after_param_change(f"Peak min-distance = {self._params.peak_min_dist}")
+
+    def act_mindist_down(self) -> None:
+        self._params.adjust_peak_min_dist(-1)
+        self._after_param_change(f"Peak min-distance = {self._params.peak_min_dist}")
+
+    def act_thresh_up(self) -> None:
+        self._params.adjust_threshold(1)
+        self._after_param_change(f"Threshold = {self._params.peak_thres:.2f}")
+
+    def act_thresh_down(self) -> None:
+        self._params.adjust_threshold(-1)
+        self._after_param_change(f"Threshold = {self._params.peak_thres:.2f}")
+
+    # ------------------------------------------------------------------ #
+    # Live capture (milestones 2-4.5)
     # ------------------------------------------------------------------ #
     def _start_capture(self) -> None:
         if self.config is None:
@@ -96,6 +259,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage("Live")
 
     def _on_frame(self, spectrum, result) -> None:
+        self._last_spectrum = spectrum
         self._view.update_spectrum(spectrum, result)
         self._waterfall.update_spectrum(spectrum, result)
         self._dock.update_readouts(spectrum, result)

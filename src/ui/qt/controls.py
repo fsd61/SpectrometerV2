@@ -39,9 +39,12 @@ _MEASURE_TIP = (
 class ControlDock(QtWidgets.QDockWidget):
     """Right-hand dock with live analysis controls and a peak readout table."""
 
-    def __init__(self, params: LiveParams, parent=None):
+    def __init__(self, params: LiveParams, parent=None, on_change=None):
         super().__init__("Controls", parent)
         self._params = params
+        # Called after any control edits ``params`` so the window can keep menu
+        # / toolbar / keyboard state in sync with the dock.
+        self._on_change = on_change
 
         body = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(body)
@@ -134,17 +137,44 @@ class ControlDock(QtWidgets.QDockWidget):
     def _on_smooth(self, v):
         self._params.savgol_order = int(v)
         self._smooth_lbl.setText(str(v))
+        self._notify()
 
     def _on_dist(self, v):
         self._params.peak_min_dist = int(v)
         self._dist_lbl.setText(str(v))
+        self._notify()
 
     def _on_thr(self, v):
         self._params.peak_thres = round(v / 100.0, 4)
         self._thr_lbl.setText(f"{self._params.peak_thres:.2f}")
+        self._notify()
 
     def _on_measure(self, checked):
-        self._params.measure = bool(checked)
+        self._params.toggle_measure() if bool(checked) != self._params.measure else None
+        self._notify()
+
+    def _notify(self):
+        if self._on_change is not None:
+            self._on_change()
+
+    def sync_from_params(self) -> None:
+        """Refresh every control from ``params`` (after a keyboard/menu change).
+
+        Signals are blocked so writing widget values does not re-enter the
+        handlers and clobber the params we are mirroring.
+        """
+        widgets = (self._smooth, self._dist, self._thr, self._measure)
+        for widget in widgets:
+            widget.blockSignals(True)
+        self._smooth.setValue(int(self._params.savgol_order))
+        self._dist.setValue(int(self._params.peak_min_dist))
+        self._thr.setValue(int(round(self._params.peak_thres * 100)))
+        self._measure.setChecked(bool(self._params.measure))
+        for widget in widgets:
+            widget.blockSignals(False)
+        self._smooth_lbl.setText(str(self._params.savgol_order))
+        self._dist_lbl.setText(str(self._params.peak_min_dist))
+        self._thr_lbl.setText(f"{self._params.peak_thres:.2f}")
 
     # ------------------------------------------------------------------ #
     def eventFilter(self, obj, event):  # noqa: N802 - Qt override
@@ -159,7 +189,7 @@ class ControlDock(QtWidgets.QDockWidget):
 
     # ------------------------------------------------------------------ #
     def update_readouts(self, spectrum, result) -> None:
-        rows = peak_readout_rows(spectrum, result)
+        rows = peak_readout_rows(spectrum, result, force_pixel=self._params.pixel_mode)
         self._table.setRowCount(len(rows))
         for r, row in enumerate(rows):
             pos = f"{row.position:.1f} nm" if row.calibrated else f"px {int(row.position)}"

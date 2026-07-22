@@ -65,3 +65,34 @@ def test_camera_frame_source_uses_adapter():
     spectrum = src.next_spectrum()
     assert len(spectrum) > 0
     src.close()
+
+
+def test_hold_peaks_accumulates_running_maximum():
+    # With hold-peaks on, each frame's intensities are the element-wise max of
+    # all frames so far, so the held trace never decreases sample-to-sample.
+    import numpy as np
+
+    engine = LiveEngine(build_frame_source(_synthetic_config()),
+                        LiveParams(hold_peaks=True))
+    s0, _ = engine.step()
+    held0 = np.asarray(s0.intensities, dtype=float)
+    s_last = s0
+    for _ in range(4):
+        s_last, _ = engine.step()
+    held_last = np.asarray(s_last.intensities, dtype=float)
+    assert s_last.metadata.get("hold_peaks") is True
+    # Monotonic non-decreasing versus the first held frame.
+    assert np.all(held_last >= held0 - 1e-9)
+    engine.close()
+
+
+def test_hold_peaks_resets_when_toggled_off():
+    engine = LiveEngine(build_frame_source(_synthetic_config()),
+                        LiveParams(hold_peaks=True))
+    engine.step()
+    engine.step()
+    assert engine._hold is not None
+    engine.params.hold_peaks = False
+    engine.step()
+    assert engine._hold is None
+    engine.close()

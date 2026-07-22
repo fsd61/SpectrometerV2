@@ -6,6 +6,36 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-22 — GUI Phase 7, milestone 5: menu + toolbar, shortcuts, snapshot
+**Added**
+- A full **menu bar** (File / Calibrate / Analysis / View / Help) and a text
+  **toolbar**, both built from a new Qt-free registry, plus the **13 original
+  PySpectrometer2 keyboard shortcuts** — `h s c x m p o l i k u j q` — each bound
+  to its action: snapshot (s), quit (q), apply/clear calibration (c/x), toggle
+  hold-peaks (h) / measure (m) / pixel-positions (p), and nudge Savitzky-Golay
+  order (o/l), peak min-distance (i/k), and threshold (u/j). A Help ▸ Keyboard
+  shortcuts dialog (F1) lists them.
+- **Snapshot / export** (key `s`) writes the current live spectrum through the
+  existing `CsvSpectrumSink` (CSV + sidecar metadata), so GUI captures ride the
+  same pluggable data seam as the CLI and future backends (BACKLOG.md). New
+  `[gui] snapshot_dir` config key (default `snapshots`); `config.ini.example`
+  regenerated.
+- Qt-free core in `ui/live.py`: `LIVE_SHORTCUTS` registry + `ShortcutSpec`,
+  `snapshot_spectrum()` / `snapshot_name()`, a real **hold-peaks** running
+  element-wise maximum in `LiveEngine.step()`, and `LiveParams.pixel_mode`
+  (mutually exclusive with `measure`, mirroring the original `recPixels`).
+  `peak_readout_rows(..., force_pixel=)` reports pixel positions/widths in
+  pixel-mode even when calibrated. The Qt widgets only render these.
+- Menu/toolbar toggles, the control-dock sliders, and the shared `LiveParams`
+  now stay in sync in both directions (dock edits update the toggles; keyboard
+  changes refresh the dock).
+- 10 new tests (pixel-mode exclusivity, hold-peaks accumulation/reset, registry
+  completeness + shape, snapshot round-trip through the sink, pixel-mode
+  readout). Suite 184 tests.
+
+> Click-to-*pick* calibration points is milestone 6; the `c`/`x` actions and a
+> pending-points buffer exist now, and M6 wires the plot clicks into them.
+
 ### 2026-07-21 — GUI Phase 7, milestone 4.5: synthetic source panel
 **Added**
 - A live **signal-generator** dock ("Synthetic source", synthetic mode only):

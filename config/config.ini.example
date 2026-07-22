@@ -67,6 +67,10 @@ fps = 15.0
 #   (type=int; default=256; min=10; max=4000)
 waterfall_frames = 256
 
+# Directory where the GUI snapshot key (s) writes CSV + metadata.
+#   (type=path; default=snapshots)
+snapshot_dir = snapshots
+
 
 [processing]
 # Sensor row used for the 1-D spectral slice; -1 = auto/center.

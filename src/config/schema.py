@@ -76,6 +76,10 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "Number of recent frames (time rows) kept in the live waterfall.",
             min=10, max=4000,
         ),
+        "snapshot_dir": Field(
+            "path", "snapshots",
+            "Directory where the GUI snapshot key (s) writes CSV + metadata.",
+        ),
     },
     "processing": {
         "slice_row": Field(

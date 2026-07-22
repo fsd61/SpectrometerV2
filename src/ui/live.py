@@ -13,6 +13,7 @@ the same bounds, exposed as pure, testable adjusters.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Optional, Protocol, Tuple
 
 import numpy as np
@@ -51,6 +52,7 @@ class LiveParams:
     peak_min_dist: int = 20        # "mindist" (keys i / k)
     measure: bool = False          # per-peak FWHM/SNR (key m)
     hold_peaks: bool = False       # freeze the running peak maxima (key h)
+    pixel_mode: bool = False       # label peaks in pixels, not nm (key p)
 
     # Bounds (inclusive).
     SAVGOL_ORDER_MIN = 0
@@ -90,9 +92,27 @@ class LiveParams:
         return self.hold_peaks
 
     def toggle_measure(self) -> bool:
-        """Toggle per-peak measurement (key m). Returns the new state."""
+        """Toggle per-peak measurement (key m). Returns the new state.
+
+        Mirrors the original tool: enabling measure turns off pixel-position
+        mode (the two are mutually exclusive readouts).
+        """
         self.measure = not self.measure
+        if self.measure:
+            self.pixel_mode = False
         return self.measure
+
+    def toggle_pixel_mode(self) -> bool:
+        """Toggle pixel-position labelling (key p). Returns the new state.
+
+        Mirrors the original ``recPixels``: enabling it turns off measure, and
+        forces peak positions/FWHM to display in pixels even when a wavelength
+        calibration is present.
+        """
+        self.pixel_mode = not self.pixel_mode
+        if self.pixel_mode:
+            self.measure = False
+        return self.pixel_mode
 
     def analyze_kwargs(self) -> dict:
         """Keyword arguments for :func:`analysis.pipeline.analyze`."""
@@ -261,9 +281,28 @@ class LiveEngine:
 
     source: FrameSource
     params: LiveParams = field(default_factory=LiveParams)
+    _hold: Optional[np.ndarray] = field(default=None, repr=False)
 
     def step(self) -> Tuple[Spectrum, SpectralAnalysis]:
         spectrum = self.source.next_spectrum()
+
+        # Hold-peaks (key h): accumulate the element-wise maximum across frames
+        # so transient/flickering lines are frozen at their brightest. Toggling
+        # it off clears the accumulator; a width change resets it safely.
+        if self.params.hold_peaks:
+            intensities = np.asarray(spectrum.intensities, dtype=float)
+            if self._hold is None or self._hold.shape != intensities.shape:
+                self._hold = intensities.copy()
+            else:
+                np.maximum(self._hold, intensities, out=self._hold)
+            spectrum = Spectrum(
+                wavelengths=list(spectrum.wavelengths),
+                intensities=self._hold.tolist(),
+                metadata={**spectrum.metadata, "hold_peaks": True},
+            )
+        else:
+            self._hold = None
+
         wavelengths = list(spectrum.wavelengths) if len(spectrum.wavelengths) else None
         result = analyze(
             spectrum.intensities, wavelengths=wavelengths, **self.params.analyze_kwargs()
@@ -329,13 +368,17 @@ class PeakRow:
     snr: Optional[float]
 
 
-def peak_readout_rows(spectrum, result) -> list[PeakRow]:
-    """Build display rows from an analyzed frame (used by the control dock)."""
-    calibrated = len(spectrum.wavelengths) > 0
+def peak_readout_rows(spectrum, result, force_pixel: bool = False) -> list[PeakRow]:
+    """Build display rows from an analyzed frame (used by the control dock).
+
+    When ``force_pixel`` is set (pixel-mode, key p), positions and widths are
+    reported in pixels even if the spectrum carries a wavelength calibration.
+    """
+    calibrated = len(spectrum.wavelengths) > 0 and not force_pixel
     rows: list[PeakRow] = []
     for i, p in enumerate(result.peaks, start=1):
         pos_calibrated = calibrated and p.wavelength is not None
-        fwhm = p.fwhm_nm if p.fwhm_nm is not None else p.fwhm
+        fwhm = p.fwhm_nm if (pos_calibrated and p.fwhm_nm is not None) else p.fwhm
         rows.append(
             PeakRow(
                 index=i,
@@ -343,8 +386,84 @@ def peak_readout_rows(spectrum, result) -> list[PeakRow]:
                 calibrated=pos_calibrated,
                 intensity=float(p.intensity),
                 fwhm=fwhm,
-                fwhm_calibrated=p.fwhm_nm is not None,
+                fwhm_calibrated=pos_calibrated and p.fwhm_nm is not None,
                 snr=p.snr,
             )
         )
     return rows
+
+
+# --------------------------------------------------------------------------- #
+# Snapshot / export (Qt-free) — writes through the pluggable data sink
+# --------------------------------------------------------------------------- #
+def snapshot_name(now: Optional[datetime] = None) -> str:
+    """A UTC-timestamped snapshot base name, e.g. ``snapshot-20260722T193000Z``."""
+    now = now or datetime.now(timezone.utc)
+    return "snapshot-" + now.strftime("%Y%m%dT%H%M%SZ")
+
+
+def snapshot_spectrum(spectrum, directory, name: Optional[str] = None):
+    """Export the current spectrum via :class:`data.sinks.CsvSpectrumSink`.
+
+    Returns the written CSV path. The snapshot key (``s``) calls this; keeping it
+    here (Qt-free) means the save path is unit-tested without a display, and it
+    routes through the same sink the CLI uses, so future backends (InfluxDB, SQL)
+    apply to GUI snapshots too (BACKLOG.md).
+    """
+    from data.sinks import CsvSpectrumSink
+
+    return CsvSpectrumSink(directory).write(spectrum, name=name or snapshot_name())
+
+
+# --------------------------------------------------------------------------- #
+# Live keyboard-shortcut registry (Qt-free, data-driven)
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class ShortcutSpec:
+    """One live keyboard shortcut, mirroring an original PySpectrometer2 key.
+
+    The Qt layer iterates this registry to build the menu bar, the toolbar, and
+    the ``QShortcut``/``QAction`` bindings, connecting each ``handler`` (a method
+    name on the main window) to its key. Keeping it here (Qt-free) means the set
+    of shortcuts, their menus, and their labels are unit-tested without a display.
+    """
+
+    key: str          # single character, matches the original tool
+    handler: str      # MainWindow method bound to the action
+    label: str        # menu / action text
+    menu: str         # which top-level menu it belongs to
+    tip: str          # status-bar / tooltip text
+    toolbar: bool = False
+    checkable: bool = False
+
+
+# The 13 original keys: h s c x m p o l i k u j q.
+LIVE_SHORTCUTS: Tuple[ShortcutSpec, ...] = (
+    ShortcutSpec("s", "act_snapshot", "Snapshot / export",
+                 "File", "Save the current spectrum (CSV + metadata)", toolbar=True),
+    ShortcutSpec("q", "act_quit", "Quit", "File", "Close the spectrometer window"),
+    ShortcutSpec("c", "act_calibrate", "Apply calibration",
+                 "Calibrate", "Fit wavelength calibration from picked points", toolbar=True),
+    ShortcutSpec("x", "act_clear_calibration", "Clear calibration points",
+                 "Calibrate", "Discard the pending calibration points"),
+    ShortcutSpec("h", "act_toggle_hold", "Hold peaks",
+                 "Analysis", "Freeze the running peak maxima", toolbar=True, checkable=True),
+    ShortcutSpec("m", "act_toggle_measure", "Measure FWHM / SNR",
+                 "Analysis", "Measure each peak's width and signal-to-noise",
+                 toolbar=True, checkable=True),
+    ShortcutSpec("p", "act_toggle_pixel", "Pixel positions",
+                 "Analysis", "Label peaks in pixels instead of nm",
+                 toolbar=True, checkable=True),
+    ShortcutSpec("o", "act_savgol_up", "Smoothing order +",
+                 "Analysis", "Increase the Savitzky-Golay polynomial order"),
+    ShortcutSpec("l", "act_savgol_down", "Smoothing order -",
+                 "Analysis", "Decrease the Savitzky-Golay polynomial order"),
+    ShortcutSpec("i", "act_mindist_up", "Peak min-distance +",
+                 "Analysis", "Increase the minimum spacing between peaks"),
+    ShortcutSpec("k", "act_mindist_down", "Peak min-distance -",
+                 "Analysis", "Decrease the minimum spacing between peaks"),
+    ShortcutSpec("u", "act_thresh_up", "Threshold +",
+                 "Analysis", "Raise the peak-label threshold"),
+    ShortcutSpec("j", "act_thresh_down", "Threshold -",
+                 "Analysis", "Lower the peak-label threshold"),
+)

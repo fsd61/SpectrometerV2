@@ -46,3 +46,22 @@ def test_analyze_kwargs_match_pipeline_signature():
         "savgol_window": 17, "savgol_order": 4, "peak_thres": 0.3,
         "peak_min_dist": 25, "measure": True,
     }
+
+
+def test_measure_and_pixel_mode_are_mutually_exclusive():
+    p = LiveParams()
+    # Enabling measure clears pixel-mode, and vice-versa (mirrors recPixels).
+    assert p.toggle_pixel_mode() is True
+    assert p.pixel_mode is True and p.measure is False
+    assert p.toggle_measure() is True
+    assert p.measure is True and p.pixel_mode is False
+    assert p.toggle_pixel_mode() is True
+    assert p.pixel_mode is True and p.measure is False
+
+
+def test_pixel_mode_does_not_change_analyze_kwargs():
+    # Pixel-mode is a display concern only; it must not alter the analysis call.
+    p = LiveParams()
+    before = p.analyze_kwargs()
+    p.toggle_pixel_mode()
+    assert p.analyze_kwargs() == before
