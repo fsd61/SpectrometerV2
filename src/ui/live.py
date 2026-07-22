@@ -247,3 +247,40 @@ class WaterfallBuffer:
     def clear(self) -> None:
         self.width = None
         self._img = None
+
+
+# --------------------------------------------------------------------------- #
+# Readout rows for the control dock (Qt-free, testable)
+# --------------------------------------------------------------------------- #
+@dataclass
+class PeakRow:
+    """One row of the live peak readout table."""
+
+    index: int
+    position: float          # wavelength (nm) if calibrated, else pixel
+    calibrated: bool
+    intensity: float
+    fwhm: Optional[float]    # nm if calibrated+measured, else pixels
+    fwhm_calibrated: bool
+    snr: Optional[float]
+
+
+def peak_readout_rows(spectrum, result) -> list[PeakRow]:
+    """Build display rows from an analyzed frame (used by the control dock)."""
+    calibrated = len(spectrum.wavelengths) > 0
+    rows: list[PeakRow] = []
+    for i, p in enumerate(result.peaks, start=1):
+        pos_calibrated = calibrated and p.wavelength is not None
+        fwhm = p.fwhm_nm if p.fwhm_nm is not None else p.fwhm
+        rows.append(
+            PeakRow(
+                index=i,
+                position=p.wavelength if pos_calibrated else float(p.pixel),
+                calibrated=pos_calibrated,
+                intensity=float(p.intensity),
+                fwhm=fwhm,
+                fwhm_calibrated=p.fwhm_nm is not None,
+                snr=p.snr,
+            )
+        )
+    return rows

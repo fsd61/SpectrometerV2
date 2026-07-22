@@ -6,6 +6,19 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — GUI Phase 7, milestone 4: control dock + readouts
+**Added**
+- `ui/qt/controls.py`: a right-hand dock with live sliders for smoothing (savgol
+  order), peak min-distance, and threshold, plus a "measure FWHM/SNR" toggle.
+  Sliders mutate the shared `LiveParams` in place, so changes take effect on the
+  next captured frame. A peak table shows position (nm or pixel), intensity,
+  FWHM, and SNR, refreshed every frame.
+- Qt-free `peak_readout_rows()` + `PeakRow` in `ui/live.py` build the table rows
+  (calibrated vs pixel positions, nm vs px FWHM), so the formatting logic is
+  unit-tested without a display. The GUI now defaults to `measure=True`.
+- 3 new readout tests (calibrated+measured, no-measure, uncalibrated pixel
+  positions). Suite 169 tests.
+
 ### 2026-07-21 — GUI Phase 7, milestone 3: live waterfall
 **Added**
 - Qt-free `WaterfallBuffer` in `ui/live.py`: a fixed-height scrolling image of

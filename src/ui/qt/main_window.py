@@ -15,6 +15,7 @@ from PySide6 import QtCore
 
 from ui.live import LiveEngine, LiveParams, build_frame_source
 from .controller import CaptureThread
+from .controls import ControlDock
 from .spectrum_view import SpectrumView
 from .waterfall_view import WaterfallView
 
@@ -34,6 +35,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if config is not None:
             frames = int(config.section("gui").get("waterfall_frames", 256))
 
+        self._params = LiveParams(measure=True)
+
         self._view = SpectrumView()
         self._waterfall = WaterfallView(frames=frames)
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
@@ -42,6 +45,9 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 2)
         self.setCentralWidget(splitter)
+
+        self._dock = ControlDock(self._params)
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self._dock)
 
         self._thread: CaptureThread | None = None
         self._start_capture()
@@ -58,7 +64,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.error("Could not start capture: %s", exc)
             return
 
-        engine = LiveEngine(source, LiveParams())
+        engine = LiveEngine(source, self._params)
         fps = float(self.config.section("gui").get("fps", 15.0))
         self._thread = CaptureThread(engine, fps=fps)
         self._thread.frameReady.connect(self._on_frame)
@@ -69,6 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_frame(self, spectrum, result) -> None:
         self._view.update_spectrum(spectrum, result)
         self._waterfall.update_spectrum(spectrum, result)
+        self._dock.update_readouts(spectrum, result)
         self.statusBar().showMessage(
             f"Live — {len(spectrum)} samples, {len(result.peaks)} peaks"
         )
