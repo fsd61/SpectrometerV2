@@ -12,7 +12,22 @@ the same bounds, exposed as pure, testable adjusters.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional, Protocol, Tuple
+
+from acquisition.service import acquire_spectrum
+from analysis.pipeline import SpectralAnalysis, analyze
+from cameras.base import CameraAdapter
+from processing.spectrum import Spectrum
+from synthetic.generator import SyntheticSpectrumSpec
+from synthetic.stream import SyntheticStream
+
+# A small demonstration line set (center nm, amplitude, FWHM nm) used for the
+# synthetic live view; mirrors the CLI's demo lines.
+DEMO_LINES = [
+    (405.0, 200.0, 2.0), (436.0, 120.0, 1.5),
+    (546.0, 180.0, 3.0), (612.0, 90.0, 2.0),
+]
 
 
 def _clamp(value, lo, hi):
@@ -86,3 +101,108 @@ class LiveParams:
             "peak_min_dist": self.peak_min_dist,
             "measure": self.measure,
         }
+
+
+# --------------------------------------------------------------------------- #
+# Frame sources — where live spectra come from (all Qt-free)
+# --------------------------------------------------------------------------- #
+class FrameSource(Protocol):
+    """Anything that yields successive :class:`Spectrum` frames on demand."""
+
+    def next_spectrum(self) -> Spectrum:
+        ...
+
+    def close(self) -> None:
+        ...
+
+
+@dataclass
+class SyntheticFrameSource:
+    """A hardware-free source that advances a reproducible synthetic stream."""
+
+    stream: SyntheticStream
+    _t: int = 0
+
+    def next_spectrum(self) -> Spectrum:
+        spectrum = self.stream.spectrum(self._t)
+        self._t += 1
+        return spectrum
+
+    def close(self) -> None:  # nothing to release
+        pass
+
+
+@dataclass
+class CameraFrameSource:
+    """A source backed by a real camera adapter via the acquisition service."""
+
+    camera: CameraAdapter
+    center_row: Optional[int] = None
+    average_rows: int = 3
+
+    def next_spectrum(self) -> Spectrum:
+        return acquire_spectrum(self.camera, self.center_row, self.average_rows)
+
+    def close(self) -> None:
+        try:
+            self.camera.shutdown()
+        except Exception:  # noqa: BLE001 - best-effort release
+            pass
+
+
+def build_synthetic_source(config) -> SyntheticFrameSource:
+    """Build a synthetic frame source from the ``[synthetic]`` config section."""
+    spec = SyntheticSpectrumSpec.from_config(
+        config.section("synthetic"),
+        [c for c, _, _ in DEMO_LINES], [a for _, a, _ in DEMO_LINES],
+        per_line_fwhm=[f for _, _, f in DEMO_LINES],
+    )
+    return SyntheticFrameSource(stream=SyntheticStream(base=spec, drift_nm=2.0))
+
+
+def build_frame_source(config, logger=None) -> FrameSource:
+    """Build the live frame source implied by ``[camera] backend``.
+
+    ``synthetic`` yields the hardware-free demo stream; any other backend builds
+    and initializes the corresponding camera adapter. The GUI defaults to a
+    synthetic source when no camera is configured, so it always has something to
+    display.
+    """
+    backend = config.section("camera").get("backend", "synthetic")
+    if backend == "synthetic":
+        return build_synthetic_source(config)
+
+    from cameras.factory import create_camera_from_config
+
+    camera = create_camera_from_config(config.section("camera"))
+    camera.initialize()
+    proc = config.section("processing")
+    slice_row = proc.get("slice_row", -1)
+    center_row = None if slice_row is None or slice_row < 0 else int(slice_row)
+    return CameraFrameSource(camera, center_row=center_row)
+
+
+# --------------------------------------------------------------------------- #
+# Live engine — one analyzed frame at a time (Qt-free)
+# --------------------------------------------------------------------------- #
+@dataclass
+class LiveEngine:
+    """Pulls a frame from a source and runs it through the analysis pipeline.
+
+    This is the whole live loop minus the Qt timer/thread: the GUI's capture
+    thread simply calls :meth:`step` repeatedly and paints the result.
+    """
+
+    source: FrameSource
+    params: LiveParams = field(default_factory=LiveParams)
+
+    def step(self) -> Tuple[Spectrum, SpectralAnalysis]:
+        spectrum = self.source.next_spectrum()
+        wavelengths = list(spectrum.wavelengths) if len(spectrum.wavelengths) else None
+        result = analyze(
+            spectrum.intensities, wavelengths=wavelengths, **self.params.analyze_kwargs()
+        )
+        return spectrum, result
+
+    def close(self) -> None:
+        self.source.close()

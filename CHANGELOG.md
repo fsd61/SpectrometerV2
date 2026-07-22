@@ -6,6 +6,24 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — GUI Phase 7, milestone 2: live spectrum plot
+**Added**
+- Qt-free live core in `ui/live.py`: a `FrameSource` protocol with
+  `SyntheticFrameSource` (advances the reproducible synthetic stream) and
+  `CameraFrameSource` (drives a camera adapter via the acquisition service),
+  `build_frame_source(config)` (synthetic by default, else builds/initializes the
+  configured camera), and `LiveEngine.step()` which pulls a frame and runs it
+  through the existing analysis pipeline. All unit-tested without a display.
+- `ui/qt/spectrum_view.py`: a pyqtgraph live plot (smoothed trace + peak markers,
+  wavelength or pixel axis). `ui/qt/controller.py`: a `QThread` that steps the
+  engine off the UI thread and emits each analyzed frame via Qt signals. The main
+  window now hosts the plot, starts capture, and shows sample/peak counts in the
+  status bar; it releases the source on close.
+- New `[gui]` config section with `fps` (target live refresh rate);
+  `config.ini.example` regenerated.
+- 5 new engine/source tests (build, step→peaks, stream advance, params→measure,
+  camera-adapter path). Suite 159 tests.
+
 ### 2026-07-21 — GUI Phase 7, milestone 1: app skeleton + `gui` command
 **Added**
 - `[gui]` optional extra (PySide6 + pyqtgraph).

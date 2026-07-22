@@ -65,6 +65,13 @@ SCHEMA: dict[str, dict[str, Field]] = {
         "width": Field("int", 1920, "Requested frame width in pixels.", min=1),
         "height": Field("int", 1080, "Requested frame height in pixels.", min=1),
     },
+    "gui": {
+        "fps": Field(
+            "float", 15.0,
+            "Target refresh rate for the live GUI view, frames per second.",
+            min=0.1, max=120.0,
+        ),
+    },
     "processing": {
         "slice_row": Field(
             "int", -1,

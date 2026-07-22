@@ -4,6 +4,9 @@
 # its purpose, type, default, and allowed values. Edit values as needed —
 # invalid or out-of-range values are rejected at startup with a clear message.
 # Any value can also be overridden per-run with: --set section.key=value
+#
+# Alternate setups: keep additional complete config files in this folder
+# (e.g. config/lab.ini) and select one with: --config config/lab.ini
 
 [general]
 # Target platform hint. 'auto' detects at runtime.
@@ -34,8 +37,8 @@ console = true
 
 
 [camera]
-# Camera adapter backend. 'auto' picks the Pi camera or a USB camera; 'synthetic' bypasses hardware.
-#   (type=str; default=auto; choices=usb, picamera2, auto, synthetic)
+# Camera source. 'auto' picks the CSI (Pi ribbon) camera on a Raspberry Pi, otherwise a USB camera; 'csi' = Pi ribbon camera; 'usb' = USB/webcam; 'synthetic' = simulated data (clearly labelled). ('picamera2' is accepted as an alias for 'csi'.)
+#   (type=str; default=auto; choices=auto, usb, csi, picamera2, synthetic)
 backend = auto
 
 # When 'auto' finds no camera: 'prompt' asks (only in an interactive terminal; otherwise behaves like 'error'), 'error' exits with guidance, 'synthetic' falls back to simulated data with a warning.
@@ -53,6 +56,12 @@ width = 1920
 # Requested frame height in pixels.
 #   (type=int; default=1080; min=1)
 height = 1080
+
+
+[gui]
+# Target refresh rate for the live GUI view, frames per second.
+#   (type=float; default=15.0; min=0.1; max=120.0)
+fps = 15.0
 
 
 [processing]
