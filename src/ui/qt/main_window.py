@@ -13,10 +13,11 @@ from PySide6 import QtWidgets
 
 from PySide6 import QtCore
 
-from ui.live import LiveEngine, LiveParams, build_frame_source
+from ui.live import LiveEngine, LiveParams, SyntheticFrameSource, build_frame_source
 from .controller import CaptureThread
 from .controls import ControlDock
 from .spectrum_view import SpectrumView
+from .synthetic_controls import SyntheticDock
 from .waterfall_view import WaterfallView
 
 
@@ -48,6 +49,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._dock = ControlDock(self._params)
         self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self._dock)
+        self._synth_dock: SyntheticDock | None = None
 
         self._build_menu()
 
@@ -55,12 +57,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self._start_capture()
 
     def _build_menu(self) -> None:
-        view_menu = self.menuBar().addMenu("&View")
+        self._view_menu = self.menuBar().addMenu("&View")
         # Qt's built-in dock toggle: re-checks/re-shows the dock after it's closed.
         toggle = self._dock.toggleViewAction()
         toggle.setText("Controls panel")
         toggle.setShortcut("Ctrl+B")
-        view_menu.addAction(toggle)
+        self._view_menu.addAction(toggle)
 
     # ------------------------------------------------------------------ #
     def _start_capture(self) -> None:
@@ -73,6 +75,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self.statusBar().showMessage(f"Could not start capture: {exc}")
             self.logger.error("Could not start capture: %s", exc)
             return
+
+        # Synthetic mode only: a live signal-generator dock, clearly labeled.
+        if isinstance(source, SyntheticFrameSource):
+            self.setWindowTitle("SpectrometerV2 — [SIMULATED]")
+            self._synth_dock = SyntheticDock(source)
+            self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self._synth_dock)
+            self.tabifyDockWidget(self._dock, self._synth_dock)
+            self._dock.raise_()
+            toggle = self._synth_dock.toggleViewAction()
+            toggle.setText("Synthetic source panel")
+            self._view_menu.addAction(toggle)
 
         engine = LiveEngine(source, self._params)
         fps = float(self.config.section("gui").get("fps", 15.0))

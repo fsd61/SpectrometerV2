@@ -120,10 +120,26 @@ class FrameSource(Protocol):
 
 @dataclass
 class SyntheticFrameSource:
-    """A hardware-free source that advances a reproducible synthetic stream."""
+    """A hardware-free source that advances a reproducible synthetic stream.
+
+    The underlying spec can be swapped live (:meth:`set_spec`) — this is what the
+    GUI's synthetic-source panel edits — and drift toggled (:meth:`set_drift`).
+    """
 
     stream: SyntheticStream
     _t: int = 0
+
+    @property
+    def spec(self) -> SyntheticSpectrumSpec:
+        return self.stream.base
+
+    def set_spec(self, spec: SyntheticSpectrumSpec) -> None:
+        # Single reference assignment: safe to call from the UI thread while the
+        # capture thread reads ``stream.base`` each frame.
+        self.stream.base = spec
+
+    def set_drift(self, enabled: bool, drift_nm: float = 2.0) -> None:
+        self.stream.drift_nm = float(drift_nm) if enabled else 0.0
 
     def next_spectrum(self) -> Spectrum:
         spectrum = self.stream.spectrum(self._t)
@@ -132,6 +148,54 @@ class SyntheticFrameSource:
 
     def close(self) -> None:  # nothing to release
         pass
+
+
+@dataclass
+class SyntheticPeak:
+    """One editable synthetic line: center wavelength (nm), amplitude, FWHM (nm)."""
+
+    wavelength: float
+    amplitude: float
+    fwhm: float
+
+
+def build_synthetic_spec(
+    peaks,
+    *,
+    snr: float,
+    baseline: float,
+    sample_interval: float,
+    seed: int,
+    wavelength_min: float = 380.0,
+    wavelength_max: float = 750.0,
+    profile_type: str = "gaussian",
+) -> SyntheticSpectrumSpec:
+    """Build a :class:`SyntheticSpectrumSpec` from editable peak rows + globals."""
+    return SyntheticSpectrumSpec(
+        center_wavelengths=[float(p.wavelength) for p in peaks],
+        amplitudes=[float(p.amplitude) for p in peaks],
+        per_line_fwhm=[float(p.fwhm) for p in peaks],
+        snr=float(snr),
+        baseline=float(baseline),
+        sample_interval=float(sample_interval),
+        seed=int(seed),
+        wavelength_min=float(wavelength_min),
+        wavelength_max=float(wavelength_max),
+        profile_type=profile_type,
+    )
+
+
+def spec_to_peaks(spec: SyntheticSpectrumSpec) -> list[SyntheticPeak]:
+    """Read a spec's lines back into editable :class:`SyntheticPeak` rows."""
+    n = len(spec.center_wavelengths)
+    if spec.per_line_fwhm and len(spec.per_line_fwhm) == n:
+        fwhms = list(spec.per_line_fwhm)
+    else:
+        fwhms = [float(spec.fwhm)] * n
+    return [
+        SyntheticPeak(float(w), float(a), float(f))
+        for w, a, f in zip(spec.center_wavelengths, spec.amplitudes, fwhms)
+    ]
 
 
 @dataclass

@@ -6,6 +6,25 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-21 — GUI Phase 7, milestone 4.5: synthetic source panel
+**Added**
+- A live **signal-generator** dock ("Synthetic source", synthetic mode only):
+  global SNR, baseline, sample interval, seed, wavelength range, and a drift
+  toggle, plus an add/remove peak table with per-peak wavelength, amplitude, and
+  FWHM. Every edit rebuilds the spec and swaps it into the running frame source,
+  so the plot/waterfall/readouts update on the next frame. Turns synthetic mode
+  into a live ground-truth test bench (set a peak's FWHM/SNR, watch the readout
+  recover it).
+- Measurement integrity: the dock exists **only** when the backend is synthetic,
+  is labeled "[SIMULATED]", and the window title gains a `[SIMULATED]` marker
+  while it is active. Snapshots already carry `source=synthetic` in metadata.
+- Qt-free core in `ui/live.py`: `SyntheticPeak`, `build_synthetic_spec()`,
+  `spec_to_peaks()`, and live `set_spec()` / `set_drift()` on
+  `SyntheticFrameSource`. The synthetic panel is tabbed with the analysis
+  Controls dock; both are reopenable from the View menu.
+- 5 new tests including live ground-truth recovery (set peaks → pipeline
+  recovers their centers) and live spec swapping. Suite 174 tests.
+
 ### 2026-07-21 — GUI Phase 7, milestone 4: control dock + readouts
 **Added**
 - `ui/qt/controls.py`: a right-hand dock with live sliders for smoothing (savgol
