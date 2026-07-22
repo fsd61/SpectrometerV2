@@ -70,6 +70,29 @@ class ControlDock(QtWidgets.QDockWidget):
         self._measure.toggled.connect(self._on_measure)
         layout.addWidget(self._measure)
 
+        # Persistent help panel: updates on hover/focus of a control. More
+        # reliable than tooltips, which depend on hover-hold timing.
+        self._default_help = "Hover or focus a control above for a description."
+        self._help = QtWidgets.QLabel(self._default_help)
+        self._help.setWordWrap(True)
+        self._help.setStyleSheet(
+            "QLabel { color: palette(mid); padding: 6px;"
+            " border: 1px solid palette(midlight); border-radius: 4px; }"
+        )
+        self._help.setMinimumHeight(64)
+        self._help.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop
+        )
+        layout.addWidget(self._help)
+
+        # Register each control so hover/focus fills the help panel.
+        self._help_text = {
+            self._smooth: _SMOOTH_TIP, self._dist: _DIST_TIP,
+            self._thr: _THRESH_TIP, self._measure: _MEASURE_TIP,
+        }
+        for widget in self._help_text:
+            widget.installEventFilter(self)
+
         self._table = QtWidgets.QTableWidget(0, len(_COLUMNS))
         self._table.setHorizontalHeaderLabels(_COLUMNS)
         self._table.horizontalHeader().setStretchLastSection(True)
@@ -122,6 +145,17 @@ class ControlDock(QtWidgets.QDockWidget):
 
     def _on_measure(self, checked):
         self._params.measure = bool(checked)
+
+    # ------------------------------------------------------------------ #
+    def eventFilter(self, obj, event):  # noqa: N802 - Qt override
+        etype = event.type()
+        if etype in (
+            QtCore.QEvent.Type.Enter,
+            QtCore.QEvent.Type.FocusIn,
+            QtCore.QEvent.Type.HoverEnter,
+        ) and obj in self._help_text:
+            self._help.setText(self._help_text[obj])
+        return super().eventFilter(obj, event)
 
     # ------------------------------------------------------------------ #
     def update_readouts(self, spectrum, result) -> None:
