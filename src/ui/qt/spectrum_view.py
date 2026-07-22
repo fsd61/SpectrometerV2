@@ -35,8 +35,14 @@ class SpectrumView(QtWidgets.QWidget):
         layout.addWidget(self._plot)
 
     def update_spectrum(self, spectrum, result) -> None:
-        """Repaint from a (Spectrum, SpectralAnalysis) pair."""
-        y = np.asarray(result.smoothed, dtype=float)
+        """Repaint from a (Spectrum, SpectralAnalysis) pair.
+
+        The trace is floored at zero: a detector cannot report negative light, so
+        Savitzky-Golay ringing at the foot of sharp lines is clamped away. Peak
+        detection and measurements are unaffected (they run on the unclamped
+        analysis result).
+        """
+        y = np.clip(np.asarray(result.smoothed, dtype=float), 0.0, None)
         calibrated = len(spectrum.wavelengths) > 0
         if calibrated:
             x = np.asarray(spectrum.wavelengths, dtype=float)
