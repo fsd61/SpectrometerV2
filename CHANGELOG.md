@@ -6,6 +6,28 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-22 — GUI Phase 7 prep: wavelet / SA analysis parameters
+**Added**
+- Two flat config sections — `[wavelet]` (`wavelet` family, `level`) and
+  `[annealing]` (`schedule`, `max_cycles`, `tol`, `n_components`,
+  `bound_tightness`, `seed`, `lock_seed`) — holding the GUI-tunable defaults for
+  the two heavy analyses. Kept flat (not `analysis.wavelet`) so
+  `--set wavelet.key=value` overrides work; `config.ini.example` regenerated.
+- Qt-free `ui/analysis_params.py`: `WaveletParams` and `SAFitParams`, mirroring
+  the `LiveParams` pattern — curated choices, clamped adjusters, `from_config`
+  builders, and `to_kwargs` that map exactly onto the `wavelet_transform` /
+  `simulated_annealing` signatures. Only the *meaningful* knobs are exposed; the
+  SA internals (`T0` auto-tune, step size, Markov factor, quench point) keep
+  their good defaults and stay off the config surface. `n_components=0` → auto
+  (derive from detected peaks), unlocked seed → fresh RNG, and
+  `WaveletParams.effective_level()` reproduces PyWavelets' level clamp without
+  importing pywt (honest effective-depth readout).
+- 13 tests, including subset-of-signature guards so the params can't silently
+  drift from the functions they feed. Suite 197 tests.
+
+> Groundwork only — no Qt widgets yet. This is the testable core for a later
+> advanced-analysis panel (fit-on-demand, seed recorded per fit).
+
 ### 2026-07-22 — GUI Phase 7, milestone 5: menu + toolbar, shortcuts, snapshot
 **Added**
 - A full **menu bar** (File / Calibrate / Analysis / View / Help) and a text

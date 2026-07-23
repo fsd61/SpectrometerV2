@@ -81,6 +81,58 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "Directory where the GUI snapshot key (s) writes CSV + metadata.",
         ),
     },
+    # Advanced-analysis GUI defaults (wavelet decomposition, simulated-annealing
+    # line fitting). Kept flat (not 'analysis.wavelet') so '--set wavelet.key=...'
+    # overrides work — the override parser splits section/key on the first dot.
+    "wavelet": {
+        "wavelet": Field(
+            "str", "db4",
+            "PyWavelets wavelet family for the decomposition view.",
+            choices=["db4", "db6", "sym5", "coif3"],
+        ),
+        "level": Field(
+            "int", 4,
+            "Decomposition depth. Clamped at compute time to the maximum the "
+            "sample count allows (see the effective-level readout).",
+            min=1, max=12,
+        ),
+    },
+    "annealing": {
+        "schedule": Field(
+            "str", "medium",
+            "Cooling schedule: 'fast' (log), 'medium' (geometric), 'slow' (linear).",
+            choices=["fast", "medium", "slow"],
+        ),
+        "max_cycles": Field(
+            "int", 200, "Maximum temperature cycles (compute budget).",
+            min=1, max=5000,
+        ),
+        "tol": Field(
+            "float", 1e-5, "Normalized-error tolerance for early termination.",
+            min=0.0, max=1.0,
+        ),
+        "n_components": Field(
+            "int", 0,
+            "Number of Gaussian components to fit; 0 = auto (derive from the "
+            "detected peaks). Sets the Markov-chain length.",
+            min=0, max=64,
+        ),
+        "bound_tightness": Field(
+            "float", 0.5,
+            "How tightly per-parameter bounds hug the seed values (0 = loose, "
+            "1 = pinned). Used when bounds are derived from detected peaks.",
+            min=0.0, max=1.0,
+        ),
+        "seed": Field(
+            "int", 0, "Random seed; recorded with each fit for reproducibility.",
+            min=0,
+        ),
+        "lock_seed": Field(
+            "bool", True,
+            "Reuse the fixed seed every run (reproducible). If false, each fit "
+            "draws a fresh seed.",
+        ),
+    },
     "processing": {
         "slice_row": Field(
             "int", -1,

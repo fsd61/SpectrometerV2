@@ -72,6 +72,46 @@ waterfall_frames = 256
 snapshot_dir = snapshots
 
 
+[wavelet]
+# PyWavelets wavelet family for the decomposition view.
+#   (type=str; default=db4; choices=db4, db6, sym5, coif3)
+wavelet = db4
+
+# Decomposition depth. Clamped at compute time to the maximum the sample count allows (see the effective-level readout).
+#   (type=int; default=4; min=1; max=12)
+level = 4
+
+
+[annealing]
+# Cooling schedule: 'fast' (log), 'medium' (geometric), 'slow' (linear).
+#   (type=str; default=medium; choices=fast, medium, slow)
+schedule = medium
+
+# Maximum temperature cycles (compute budget).
+#   (type=int; default=200; min=1; max=5000)
+max_cycles = 200
+
+# Normalized-error tolerance for early termination.
+#   (type=float; default=1e-05; min=0.0; max=1.0)
+tol = 1e-05
+
+# Number of Gaussian components to fit; 0 = auto (derive from the detected peaks). Sets the Markov-chain length.
+#   (type=int; default=0; min=0; max=64)
+n_components = 0
+
+# How tightly per-parameter bounds hug the seed values (0 = loose, 1 = pinned). Used when bounds are derived from detected peaks.
+#   (type=float; default=0.5; min=0.0; max=1.0)
+bound_tightness = 0.5
+
+# Random seed; recorded with each fit for reproducibility.
+#   (type=int; default=0; min=0)
+seed = 0
+
+# Reuse the fixed seed every run (reproducible). If false, each fit draws a fresh seed.
+#   (type=bool; default=true)
+lock_seed = true
+
+
 [processing]
 # Sensor row used for the 1-D spectral slice; -1 = auto/center.
 #   (type=int; default=-1; min=-1)
