@@ -6,6 +6,26 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-23 — GUI Phase 7, milestone 7: offscreen tests + docs
+**Added**
+- Offscreen PySide6 widget tests (`tests/unit/test_qt_offscreen.py`, run under
+  `QT_QPA_PLATFORM=offscreen`): action/shortcut registration for all 13 keys,
+  menu/toolbar construction, graceful no-frame snapshot, toggle/param sync, and
+  click-to-calibrate end-to-end (pick → snap → apply). They `importorskip`
+  PySide6/pyqtgraph/pytest-qt, so they skip cleanly on a headless box and run
+  wherever the `[gui]` extra is installed. `pytest-qt` added to the `dev` extra.
+- An **Interactive GUI** section in `INSTALL.md`: the `[gui]` extra, launching
+  `spectrometerv2 gui`, the 13-shortcut table, snapshot dir, and the
+  click-to-calibrate workflow, plus how to run the offscreen GUI tests.
+
+**Changed**
+- Architecture doc: the Presentation Layer (GUI) status is now `[Implemented]`
+  (was `[Planned]`). `BACKLOG.md` GUI entry refreshed to reflect M1–M6 done and
+  M8 (OV9281 validation) as the remaining hardware step.
+
+> M8 (on-hardware OV9281 validation) is deliberately untouched — the sensor is
+> in hand but validation is a with-Frank step.
+
 ### 2026-07-23 — GUI Phase 7, milestone 6: click-to-calibrate
 **Added**
 - Click emission lines on the live plot to pick calibration points, then press

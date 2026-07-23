@@ -96,9 +96,61 @@ spectrometerv2 -i out/synthetic.csv analyze
 Outputs are written through a pluggable persistence sink (CSV + sidecar
 metadata JSON today; database/dashboard backends are planned — see `BACKLOG.md`).
 
+## Interactive GUI
+
+An optional PySide6 desktop GUI gives a live view: a real-time spectrum plot, a
+scrolling waterfall, a control dock (smoothing / peak min-distance / threshold
+sliders with FWHM/SNR readouts), and — in synthetic mode — a live
+signal-generator panel for a hardware-free test bench.
+
+```bash
+pip install -e .[gui]       # + PySide6 and pyqtgraph
+spectrometerv2 gui          # launches the window (synthetic source by default)
+```
+
+If the `[gui]` extra isn't installed, the `gui` command exits with an actionable
+message rather than a traceback.
+
+**Menu, toolbar, and keyboard shortcuts.** The window has a full menu bar and
+toolbar. The thirteen single-key shortcuts mirror the original PySpectrometer2:
+
+| Key | Action | Key | Action |
+|-----|--------|-----|--------|
+| `s` | Snapshot / export (CSV + metadata) | `o` / `l` | Smoothing order +/- |
+| `q` | Quit | `i` / `k` | Peak min-distance +/- |
+| `c` | Apply calibration | `u` / `j` | Threshold +/- |
+| `x` | Clear calibration points | `h` | Toggle hold-peaks |
+| `m` | Toggle FWHM/SNR measure | `p` | Toggle pixel positions |
+
+Press `F1` for the in-app shortcut list.
+
+**Snapshots** (`s`) are written through the same persistence sink as the CLI, to
+the `[gui] snapshot_dir` directory (default `snapshots/`).
+
+**Click-to-calibrate.** Enable **Calibrate ▸ Pick points** (Ctrl+K), click each
+known emission line on the plot (clicks snap to the nearest detected peak) and
+enter its wavelength; after three or more points press `c` to fit and apply the
+calibration live. The points are saved in the baseline caldata format, so they
+interoperate with `check-calibration` and the original tool.
+
+> The sandbox/CI has no display; the GUI runs on a real desktop. On a headless
+> machine you can still smoke-test it with `QT_QPA_PLATFORM=offscreen`.
+
 ## Running the tests
 
 ```bash
-pip install -e .[dev]
+pip install -e .[dev]        # pytest (+ pytest-qt for the GUI tests)
 pytest
 ```
+
+The Qt-free core (analysis, config, calibration, and the live-view logic) runs
+everywhere. The offscreen widget tests additionally need the GUI extra and a Qt
+platform plugin:
+
+```bash
+pip install -e .[dev,gui]
+QT_QPA_PLATFORM=offscreen pytest        # runs the offscreen Qt widget tests too
+```
+
+Where Qt's system libraries aren't available (e.g. a headless CI box), those GUI
+tests skip cleanly instead of failing.

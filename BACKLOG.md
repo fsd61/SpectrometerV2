@@ -30,8 +30,15 @@ document and a Presentation/Export section to the Architecture document.
 - **Hardware-in-the-loop validation** — USB and Raspberry Pi adapters are
   implemented and contract-tested but not yet validated on real devices
   (Migration Plan Phase 6; Gate F).
-- **GUI** — the OpenCV/graph/waterfall interface and keybindings (Migration Plan
-  Phase 7); the extracted `ui/` package is still a stub.
+- **GUI** — **largely done** (Migration Plan Phase 7). The PySide6 desktop app
+  (`ui/qt/`, over the Qt-free `ui/live.py` core) has the live spectrum plot,
+  scrolling waterfall, control dock + FWHM/SNR readouts, synthetic
+  signal-generator panel, a full menu + toolbar with the 13 original keyboard
+  shortcuts, snapshot/export through the data sink, and click-to-calibrate
+  (M1–M6). Remaining: M7 (offscreen widget tests — done; docs) and **M8 —
+  OV9281 on-hardware validation** (pending the sensor). The wavelet/SA fit
+  *panel* is not built yet, though its Qt-free parameter core
+  (`ui/analysis_params.py`) and config sections are in place.
 - **Advanced analysis** — **done.** FFT and wavelet decomposition
   (`analysis/transforms.py`; wavelet gated behind the `[wavelet]` extra) and
   simulated-annealing line fitting (`analysis/annealing.py`, NumPy-only) are all
