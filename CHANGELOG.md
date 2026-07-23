@@ -6,6 +6,31 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-23 — GUI Phase 7, milestone 6: click-to-calibrate
+**Added**
+- Click emission lines on the live plot to pick calibration points, then press
+  `c` to fit and apply the wavelength calibration; `x` clears the picks. A
+  checkable **Calibrate ▸ Pick points** mode (Ctrl+K) gates plot-click capture,
+  and each click snaps to the nearest detected peak (within 12 px) before asking
+  for the known wavelength.
+- Qt-free core in `ui/live.py`: `CalibrationSession` (pick buffer with
+  add/remove/clear, ≥3-point readiness, `fit`/`axis`/`save` delegating to the
+  existing `calibration` package) and `snap_pixel_to_peak`. `LiveEngine` gains
+  `set_calibration`/`clear_calibration`; it attaches the fitted axis to frames
+  that arrive **uncalibrated** (the camera path) and never overwrites a frame
+  that already carries wavelengths (synthetic ground truth stays ground truth).
+- `SpectrumView` emits `plotClicked(x)`; the main window snaps, prompts for the
+  wavelength, applies the fit to the running engine, and saves the points to the
+  configured calibration file (baseline caldata format, CLI-interoperable).
+
+**Fixed**
+- `write_calibration_points` now writes its CRLFs verbatim (`newline=""`); on
+  Windows the previous `\r\n` was being re-translated to `\r\r\n`, corrupting the
+  caldata file on save (and failing the persistence round-trip on Windows).
+
+_10 new tests (calibration session, peak snap, save round-trip, live-apply +
+ground-truth protection). Sandbox suite 206 passed, 1 skipped._
+
 ### 2026-07-22 — GUI Phase 7 prep: wavelet / SA analysis parameters
 **Added**
 - Two flat config sections — `[wavelet]` (`wavelet` family, `level`) and

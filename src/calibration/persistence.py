@@ -35,9 +35,11 @@ def write_calibration_points(path: str | Path, pixels, wavelengths) -> Path:
     path = Path(path)
     if path.parent != Path(""):
         path.parent.mkdir(parents=True, exist_ok=True)
+    # newline="" writes the explicit CRLFs verbatim; without it, Windows text
+    # mode would translate each "\n" and emit "\r\r\n", which over-splits on read.
     path.write_text(
         ",".join(str(p) for p in pixels) + "\r\n"
         + ",".join(str(w) for w in wavelengths) + "\r\n",
-        encoding="utf-8",
+        encoding="utf-8", newline="",
     )
     return path

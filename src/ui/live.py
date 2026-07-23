@@ -281,7 +281,20 @@ class LiveEngine:
 
     source: FrameSource
     params: LiveParams = field(default_factory=LiveParams)
+    calibration: Optional[list] = None   # per-pixel wavelengths (nm), or None
     _hold: Optional[np.ndarray] = field(default=None, repr=False)
+
+    def set_calibration(self, wavelengths) -> None:
+        """Apply a pixel->wavelength calibration to subsequent uncalibrated frames.
+
+        Single reference assignment, so it is safe to call from the UI thread
+        while the capture thread reads it each frame (same pattern as
+        ``SyntheticFrameSource.set_spec``).
+        """
+        self.calibration = list(wavelengths) if wavelengths is not None else None
+
+    def clear_calibration(self) -> None:
+        self.calibration = None
 
     def step(self) -> Tuple[Spectrum, SpectralAnalysis]:
         spectrum = self.source.next_spectrum()
@@ -302,6 +315,18 @@ class LiveEngine:
             )
         else:
             self._hold = None
+
+        # Click-to-calibrate (M6): attach the fitted wavelength axis to frames
+        # that arrive uncalibrated (the camera path). Frames that already carry
+        # wavelengths (synthetic ground truth) are left untouched — a user
+        # calibration must never overwrite a known-true axis.
+        if self.calibration is not None and len(spectrum.wavelengths) == 0:
+            n = len(spectrum.intensities)
+            spectrum = Spectrum(
+                wavelengths=[float(w) for w in self.calibration[:n]],
+                intensities=spectrum.intensities,
+                metadata={**spectrum.metadata, "calibration": "applied"},
+            )
 
         wavelengths = list(spectrum.wavelengths) if len(spectrum.wavelengths) else None
         result = analyze(
@@ -467,3 +492,74 @@ LIVE_SHORTCUTS: Tuple[ShortcutSpec, ...] = (
     ShortcutSpec("j", "act_thresh_down", "Threshold -",
                  "Analysis", "Lower the peak-label threshold"),
 )
+
+
+# --------------------------------------------------------------------------- #
+# Click-to-calibrate (M6) — Qt-free session model
+# --------------------------------------------------------------------------- #
+def snap_pixel_to_peak(x_pixel, peak_pixels, tol: int = 12) -> int:
+    """Snap a clicked plot x to the nearest detected peak pixel within ``tol``.
+
+    Picking calibration lines is easier if a near-miss click lands exactly on the
+    detected peak; clicks further than ``tol`` px from any peak keep the rounded
+    click position (so lines the detector missed can still be picked).
+    """
+    x = int(round(float(x_pixel)))
+    if not peak_pixels:
+        return x
+    nearest = min(peak_pixels, key=lambda p: abs(int(p) - x))
+    return int(nearest) if abs(int(nearest) - x) <= tol else x
+
+
+@dataclass
+class CalibrationSession:
+    """Pending pixel->wavelength calibration points picked from the plot.
+
+    The GUI appends a point per click (key/menu-gated pick mode); ``c`` fits and
+    applies once at least three points exist, ``x`` clears them. The fit and the
+    file format delegate to the existing ``calibration`` package, so the GUI and
+    CLI produce identical, interoperable calibrations.
+    """
+
+    points: list = field(default_factory=list)   # list[(pixel:int, wavelength:float)]
+
+    def add(self, pixel, wavelength) -> None:
+        self.points.append((int(round(float(pixel))), float(wavelength)))
+
+    def remove_last(self) -> None:
+        if self.points:
+            self.points.pop()
+
+    def clear(self) -> None:
+        self.points.clear()
+
+    @property
+    def count(self) -> int:
+        return len(self.points)
+
+    @property
+    def ready(self) -> bool:
+        """A polynomial fit needs at least three points (2nd order)."""
+        return len(self.points) >= 3
+
+    def pixels(self) -> list:
+        return [p for p, _ in self.points]
+
+    def wavelengths(self) -> list:
+        return [w for _, w in self.points]
+
+    def fit(self, width: int):
+        """Fit the pixel->wavelength polynomial over a sensor ``width`` px wide."""
+        from calibration.wavelength import calibrate
+
+        return calibrate(self.pixels(), self.wavelengths(), width)
+
+    def axis(self, width: int) -> list:
+        """The per-pixel wavelength axis produced by the current points."""
+        return self.fit(width).wavelengths
+
+    def save(self, path):
+        """Persist the picked points in the baseline caldata format."""
+        from calibration.persistence import write_calibration_points
+
+        return write_calibration_points(path, self.pixels(), self.wavelengths())

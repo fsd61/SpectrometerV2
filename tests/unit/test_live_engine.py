@@ -96,3 +96,45 @@ def test_hold_peaks_resets_when_toggled_off():
     engine.step()
     assert engine._hold is None
     engine.close()
+
+
+class _PixelAxisSource:
+    """A camera-like frame source that yields uncalibrated (pixel-axis) frames."""
+
+    def __init__(self, n=64):
+        from processing.spectrum import Spectrum
+        self._spec = Spectrum(wavelengths=[], intensities=[float(i % 7) for i in range(n)],
+                              metadata={"source": "camera"})
+
+    def next_spectrum(self):
+        return self._spec
+
+    def close(self):
+        pass
+
+
+def test_calibration_applied_to_uncalibrated_frames():
+    src = _PixelAxisSource(n=64)
+    engine = LiveEngine(src, LiveParams())
+    s0, _ = engine.step()
+    assert len(s0.wavelengths) == 0            # camera frame arrives on pixel axis
+    engine.set_calibration([400.0 + i for i in range(64)])
+    s1, _ = engine.step()
+    assert len(s1.wavelengths) == 64           # calibration attached
+    assert s1.wavelengths[0] == 400.0
+    assert s1.metadata.get("calibration") == "applied"
+    engine.clear_calibration()
+    s2, _ = engine.step()
+    assert len(s2.wavelengths) == 0            # cleared
+    engine.close()
+
+
+def test_calibration_never_overwrites_ground_truth_axis():
+    # Synthetic frames already carry true wavelengths; a user calibration must
+    # not clobber them.
+    engine = LiveEngine(build_frame_source(_synthetic_config()), LiveParams())
+    engine.set_calibration([0.0] * 5000)
+    spectrum, _ = engine.step()
+    assert spectrum.wavelengths[0] != 0.0
+    assert "calibration" not in spectrum.metadata
+    engine.close()

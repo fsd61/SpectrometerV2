@@ -19,12 +19,15 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from ui.live import (
     LIVE_SHORTCUTS,
+    CalibrationSession,
     LiveEngine,
     LiveParams,
     SyntheticFrameSource,
     build_frame_source,
+    snap_pixel_to_peak,
     snapshot_spectrum,
 )
+from errors import CalibrationError
 from .controller import CaptureThread
 from .controls import ControlDock
 from .spectrum_view import SpectrumView
@@ -54,10 +57,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._params = LiveParams(measure=True)
         self._last_spectrum = None
-        self._cal_points: list[int] = []      # pixel picks; click capture = M6
+        self._last_peaks: list[int] = []      # peak pixel indices, for click-snap
+        self._cal_session = CalibrationSession()
+        self._calib_mode = False              # plot clicks add points when True
+        self._engine: LiveEngine | None = None
         self._actions: dict[str, QtGui.QAction] = {}
 
         self._view = SpectrumView()
+        self._view.plotClicked.connect(self._on_plot_click)
         self._waterfall = WaterfallView(frames=frames)
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         splitter.addWidget(self._view)
@@ -102,6 +109,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 menus[spec.menu].addSeparator()
             menus[spec.menu].addAction(act)
             prev_menu = spec.menu
+
+        # Calibrate menu: a checkable "pick points" mode gates plot-click capture
+        # (the c/x actions from the registry apply/clear the picked points).
+        self._pick_action = QtGui.QAction("Pick points (click plot)", self)
+        self._pick_action.setCheckable(True)
+        self._pick_action.setShortcut("Ctrl+K")
+        self._pick_action.setStatusTip(
+            "Click emission lines on the plot to add calibration points, then press c."
+        )
+        self._pick_action.toggled.connect(self._toggle_pick_mode)
+        menus["Calibrate"].addSeparator()
+        menus["Calibrate"].addAction(self._pick_action)
 
         self._view_menu = bar.addMenu("&View")
         toggle = self._dock.toggleViewAction()
@@ -176,18 +195,84 @@ class MainWindow(QtWidgets.QMainWindow):
         self.close()
 
     def act_calibrate(self) -> None:
-        n = len(self._cal_points)
-        if n < 2:
+        """Fit + apply a wavelength calibration from the picked points (key c)."""
+        session = self._cal_session
+        if not session.ready:
             self.statusBar().showMessage(
-                f"Calibration needs picked points — {n} pending. "
-                "Click-to-pick lands in M6."
+                f"Calibration needs at least 3 points — {session.count} picked. "
+                "Enable Calibrate ▸ Pick points and click emission lines."
             )
             return
-        self.statusBar().showMessage(f"{n} calibration points pending (fit wiring: M6).")
+        width = self._sensor_width()
+        try:
+            result = session.fit(width)
+        except CalibrationError as exc:
+            self.statusBar().showMessage(f"Calibration failed: {exc}")
+            self.logger.error("Calibration failed: %s", exc)
+            return
+
+        if self._engine is not None:
+            self._engine.set_calibration(result.wavelengths)
+        saved = self._save_calibration(session)
+        r2 = "" if result.r_squared is None else f", R²={result.r_squared:.5f}"
+        tail = f" → {saved}" if saved else ""
+        self.statusBar().showMessage(
+            f"Calibrated: {session.count} points, {result.order}-order fit{r2}{tail}"
+        )
+        self.logger.info("Applied calibration: %d points order=%d",
+                         session.count, result.order)
 
     def act_clear_calibration(self) -> None:
-        self._cal_points.clear()
-        self.statusBar().showMessage("Cleared pending calibration points.")
+        self._cal_session.clear()
+        self.statusBar().showMessage("Cleared picked calibration points.")
+
+    # ------------------------------------------------------------------ #
+    # Click-to-calibrate helpers (M6)
+    # ------------------------------------------------------------------ #
+    def _toggle_pick_mode(self, on: bool) -> None:
+        self._calib_mode = bool(on)
+        self.statusBar().showMessage(
+            "Pick mode ON — click emission lines to add points, then press c."
+            if on else "Pick mode off."
+        )
+
+    def _on_plot_click(self, x: float) -> None:
+        if not self._calib_mode:
+            return
+        pixel = snap_pixel_to_peak(x, self._last_peaks)
+        wavelength, ok = QtWidgets.QInputDialog.getDouble(
+            self, "Calibration point",
+            f"Known wavelength (nm) at pixel {pixel}:",
+            546.0, 0.0, 3000.0, 3,
+        )
+        if ok:
+            self._add_calibration_pick(pixel, float(wavelength))
+
+    def _add_calibration_pick(self, pixel: int, wavelength: float) -> None:
+        """Record one (pixel, wavelength) pick. Split out so tests can drive it
+        without the modal dialog."""
+        self._cal_session.add(pixel, wavelength)
+        self.statusBar().showMessage(
+            f"Point {self._cal_session.count}: pixel {pixel} = {wavelength:.2f} nm"
+            + ("  (≥3 — press c to apply)" if self._cal_session.ready else "")
+        )
+
+    def _sensor_width(self) -> int:
+        if self._last_spectrum is not None and len(self._last_spectrum) > 0:
+            return len(self._last_spectrum)
+        if self.config is not None:
+            return int(self.config.section("camera").get("width", 1920))
+        return 1920
+
+    def _save_calibration(self, session) -> str:
+        if self.config is None:
+            return ""
+        try:
+            path = session.save(self.config.get("calibration", "file"))
+            return str(path)
+        except Exception as exc:  # noqa: BLE001 - non-fatal; calibration still applied
+            self.logger.warning("Could not save calibration points: %s", exc)
+            return ""
 
     def act_toggle_hold(self) -> None:
         state = self._params.toggle_hold_peaks()
@@ -251,6 +336,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._view_menu.addAction(toggle)
 
         engine = LiveEngine(source, self._params)
+        self._engine = engine
         fps = float(self.config.section("gui").get("fps", 15.0))
         self._thread = CaptureThread(engine, fps=fps)
         self._thread.frameReady.connect(self._on_frame)
@@ -260,6 +346,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_frame(self, spectrum, result) -> None:
         self._last_spectrum = spectrum
+        self._last_peaks = [p.pixel for p in result.peaks]
         self._view.update_spectrum(spectrum, result)
         self._waterfall.update_spectrum(spectrum, result)
         self._dock.update_readouts(spectrum, result)
