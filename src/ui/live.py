@@ -422,9 +422,18 @@ def peak_readout_rows(spectrum, result, force_pixel: bool = False) -> list[PeakR
 # Snapshot / export (Qt-free) — writes through the pluggable data sink
 # --------------------------------------------------------------------------- #
 def snapshot_name(now: Optional[datetime] = None) -> str:
-    """A UTC-timestamped snapshot base name, e.g. ``snapshot-20260722T193000Z``."""
+    """A UTC-timestamped snapshot base name, e.g.
+    ``snapshot-20260722T193000_123Z``.
+
+    Millisecond precision so pressing the snapshot key several times within the
+    same second produces distinct files instead of overwriting one.
+    """
     now = now or datetime.now(timezone.utc)
-    return "snapshot-" + now.strftime("%Y%m%dT%H%M%SZ")
+    return (
+        "snapshot-"
+        + now.strftime("%Y%m%dT%H%M%S_")
+        + f"{now.microsecond // 1000:03d}Z"
+    )
 
 
 def snapshot_spectrum(spectrum, directory, name: Optional[str] = None):

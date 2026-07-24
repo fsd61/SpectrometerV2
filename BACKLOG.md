@@ -27,17 +27,20 @@ document and a Presentation/Export section to the Architecture document.
   Gaussian is implemented).
 - **Legacy path removal** — retire `Original_Pyspectrometer2/specFunctions.py`
   usage only after full equivalence is demonstrated (Migration Plan Gate G).
-- **Hardware-in-the-loop validation** — USB and Raspberry Pi adapters are
-  implemented and contract-tested but not yet validated on real devices
-  (Migration Plan Phase 6; Gate F).
+- **Hardware-in-the-loop validation** — the **USB adapter is now validated on a
+  real device** (Arducam USB OV9281, native 1280×800). The Raspberry Pi (CSI/
+  picamera2) adapter is still implemented and contract-tested but not yet run on
+  real hardware (Migration Plan Phase 6; Gate F).
 - **GUI** — **largely done** (Migration Plan Phase 7). The PySide6 desktop app
   (`ui/qt/`, over the Qt-free `ui/live.py` core) has the live spectrum plot,
   scrolling waterfall, control dock + FWHM/SNR readouts, synthetic
   signal-generator panel, a full menu + toolbar with the 13 original keyboard
   shortcuts, snapshot/export through the data sink, and click-to-calibrate
-  (M1–M6). Remaining: M7 (offscreen widget tests — done; docs) and **M8 —
-  OV9281 on-hardware validation** (pending the sensor). The wavelet/SA fit
-  *panel* is not built yet, though its Qt-free parameter core
+  (M1–M6). M7 (offscreen widget tests + docs) done. **M8 software validated on a
+  real USB OV9281** (opens at native 1280×800, `run` acquires end-to-end, live GUI
+  renders on real frames); the remaining M8 step is the **on-bench argon-line
+  calibration** (FS-2 doublet at 810.4/811.5 nm) — optical work, not software.
+  The wavelet/SA fit *panel* is not built yet, though its Qt-free parameter core
   (`ui/analysis_params.py`) and config sections are in place.
 - **Advanced analysis** — **done.** FFT and wavelet decomposition
   (`analysis/transforms.py`; wavelet gated behind the `[wavelet]` extra) and

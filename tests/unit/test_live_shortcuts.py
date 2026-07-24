@@ -36,11 +36,20 @@ def test_only_toggle_actions_are_checkable():
     assert checkable == set("hmp")  # hold, measure, pixel-mode
 
 
-def test_snapshot_name_is_timestamped():
+def test_snapshot_name_is_timestamped_to_the_millisecond():
     from datetime import datetime, timezone
 
-    name = snapshot_name(datetime(2026, 7, 22, 19, 30, 0, tzinfo=timezone.utc))
-    assert name == "snapshot-20260722T193000Z"
+    name = snapshot_name(datetime(2026, 7, 22, 19, 30, 0, 123456, tzinfo=timezone.utc))
+    assert name == "snapshot-20260722T193000_123Z"
+
+
+def test_snapshot_names_differ_within_the_same_second():
+    from datetime import datetime, timezone
+
+    t0 = datetime(2026, 7, 22, 19, 30, 0, 100000, tzinfo=timezone.utc)
+    t1 = datetime(2026, 7, 22, 19, 30, 0, 900000, tzinfo=timezone.utc)
+    # Two presses in the same second must not collide (the M8 field bug).
+    assert snapshot_name(t0) != snapshot_name(t1)
 
 
 def test_snapshot_spectrum_writes_through_the_sink(tmp_path):

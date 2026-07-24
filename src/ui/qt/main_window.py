@@ -14,6 +14,7 @@ display.
 from __future__ import annotations
 
 import logging
+import time
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -62,6 +63,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._calib_mode = False              # plot clicks add points when True
         self._engine: LiveEngine | None = None
         self._actions: dict[str, QtGui.QAction] = {}
+        self._status_hold_until = 0.0         # live counter yields to a flashed msg
 
         self._view = SpectrumView()
         self._view.plotClicked.connect(self._on_plot_click)
@@ -173,22 +175,22 @@ class MainWindow(QtWidgets.QMainWindow):
     def _after_param_change(self, message: str) -> None:
         self._sync_action_checks()
         self._dock.sync_from_params()
-        self.statusBar().showMessage(message)
+        self._flash_status(message, hold=1.5)
 
     # ------------------------------------------------------------------ #
     # Shortcut handlers (bound by key in LIVE_SHORTCUTS)
     # ------------------------------------------------------------------ #
     def act_snapshot(self) -> None:
         if self._last_spectrum is None:
-            self.statusBar().showMessage("Nothing to snapshot yet.")
+            self._flash_status("Nothing to snapshot yet.")
             return
         try:
             path = snapshot_spectrum(self._last_spectrum, self._snapshot_dir)
         except Exception as exc:  # noqa: BLE001 - report, keep window alive
-            self.statusBar().showMessage(f"Snapshot failed: {exc}")
+            self._flash_status(f"Snapshot failed: {exc}")
             self.logger.error("Snapshot failed: %s", exc)
             return
-        self.statusBar().showMessage(f"Saved snapshot → {path}")
+        self._flash_status(f"Saved snapshot → {path}")
         self.logger.info("Saved snapshot → %s", path)
 
     def act_quit(self) -> None:
@@ -198,7 +200,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """Fit + apply a wavelength calibration from the picked points (key c)."""
         session = self._cal_session
         if not session.ready:
-            self.statusBar().showMessage(
+            self._flash_status(
                 f"Calibration needs at least 3 points — {session.count} picked. "
                 "Enable Calibrate ▸ Pick points and click emission lines."
             )
@@ -207,7 +209,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             result = session.fit(width)
         except CalibrationError as exc:
-            self.statusBar().showMessage(f"Calibration failed: {exc}")
+            self._flash_status(f"Calibration failed: {exc}")
             self.logger.error("Calibration failed: %s", exc)
             return
 
@@ -216,7 +218,7 @@ class MainWindow(QtWidgets.QMainWindow):
         saved = self._save_calibration(session)
         r2 = "" if result.r_squared is None else f", R²={result.r_squared:.5f}"
         tail = f" → {saved}" if saved else ""
-        self.statusBar().showMessage(
+        self._flash_status(
             f"Calibrated: {session.count} points, {result.order}-order fit{r2}{tail}"
         )
         self.logger.info("Applied calibration: %d points order=%d",
@@ -224,14 +226,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def act_clear_calibration(self) -> None:
         self._cal_session.clear()
-        self.statusBar().showMessage("Cleared picked calibration points.")
+        self._flash_status("Cleared picked calibration points.")
 
     # ------------------------------------------------------------------ #
     # Click-to-calibrate helpers (M6)
     # ------------------------------------------------------------------ #
     def _toggle_pick_mode(self, on: bool) -> None:
         self._calib_mode = bool(on)
-        self.statusBar().showMessage(
+        self._flash_status(
             "Pick mode ON — click emission lines to add points, then press c."
             if on else "Pick mode off."
         )
@@ -252,7 +254,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """Record one (pixel, wavelength) pick. Split out so tests can drive it
         without the modal dialog."""
         self._cal_session.add(pixel, wavelength)
-        self.statusBar().showMessage(
+        self._flash_status(
             f"Point {self._cal_session.count}: pixel {pixel} = {wavelength:.2f} nm"
             + ("  (≥3 — press c to apply)" if self._cal_session.ready else "")
         )
@@ -344,15 +346,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self._thread.start()
         self.statusBar().showMessage("Live")
 
+    def _flash_status(self, message: str, hold: float = 3.0) -> None:
+        """Show a message and hold it against the per-frame live counter.
+
+        The capture thread rewrites the status bar every frame; without this a
+        user-action confirmation (snapshot saved, calibration applied) would be
+        overwritten within ~1/fps of a second and never be readable.
+        """
+        self.statusBar().showMessage(message)
+        self._status_hold_until = time.monotonic() + hold
+
     def _on_frame(self, spectrum, result) -> None:
         self._last_spectrum = spectrum
         self._last_peaks = [p.pixel for p in result.peaks]
         self._view.update_spectrum(spectrum, result)
         self._waterfall.update_spectrum(spectrum, result)
         self._dock.update_readouts(spectrum, result)
-        self.statusBar().showMessage(
-            f"Live — {len(spectrum)} samples, {len(result.peaks)} peaks"
-        )
+        if time.monotonic() >= self._status_hold_until:
+            self.statusBar().showMessage(
+                f"Live — {len(spectrum)} samples, {len(result.peaks)} peaks"
+            )
 
     def _on_error(self, message: str) -> None:
         self.statusBar().showMessage(f"Capture stopped: {message}")

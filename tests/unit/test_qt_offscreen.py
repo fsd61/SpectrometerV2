@@ -53,6 +53,21 @@ def test_snapshot_with_no_frame_is_graceful(window):
     assert "Nothing to snapshot" in window.statusBar().currentMessage()
 
 
+def test_snapshot_confirmation_survives_the_live_counter(window, tmp_path):
+    from analysis.pipeline import analyze
+    from processing.spectrum import Spectrum
+
+    window._snapshot_dir = str(tmp_path)
+    spec = Spectrum(wavelengths=[], intensities=[1.0, 5.0, 2.0, 8.0, 3.0])
+    window._last_spectrum = spec
+    window.act_snapshot()
+    assert "Saved snapshot" in window.statusBar().currentMessage()
+    # A live frame arriving right after must not stomp the confirmation.
+    result = analyze(spec.intensities, wavelengths=None, measure=False)
+    window._on_frame(spec, result)
+    assert "Saved snapshot" in window.statusBar().currentMessage()
+
+
 def test_toggle_actions_track_params(window):
     m0 = window._params.measure
     window.act_toggle_measure()

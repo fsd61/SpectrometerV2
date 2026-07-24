@@ -6,6 +6,31 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-23 — GUI Phase 7, milestone 8: OV9281 hardware validation + snapshot fixes
+**Validated on hardware** — an Arducam **USB OV9281** on Windows (the `usb`/
+opencv backend, `device_index=1`, native 1280×800, delivered as 3-channel BGR
+which `to_grayscale` handles):
+- `verify-hardware` → `Camera [usb]: OK (1280x800 BGR)`.
+- `run` acquires a real 1280-sample spectrum end-to-end (extract → analyze →
+  CSV + metadata).
+- The live GUI renders on real frames — menu, toolbar, 13 shortcuts, waterfall,
+  peak readouts, snapshot/export, and click-to-calibrate all exercised.
+
+Remaining M8 work is the **scientific** calibration (recover the FS-2 argon
+doublet at 810.4 / 811.5 nm), which is on-bench optical work, not software.
+
+**Fixed** (surfaced during hardware bring-up)
+- Snapshot filenames now carry **millisecond** precision
+  (`snapshot-YYYYMMDDThhmmss_mmmZ`); pressing `s` several times within one second
+  was overwriting a single file.
+- Snapshot/calibration/toggle confirmations now **persist** against the live
+  frame counter via a short status-bar hold (`_flash_status`); previously the
+  per-frame "Live — N samples" message stomped them within ~1/fps of a second, so
+  a saved-snapshot confirmation was unreadable in the window.
+
+_3 new tests (millisecond naming, same-second uniqueness, confirmation survives a
+live frame). Sandbox suite 207 passed, 1 skipped._
+
 ### 2026-07-23 — GUI Phase 7, milestone 7: offscreen tests + docs
 **Added**
 - Offscreen PySide6 widget tests (`tests/unit/test_qt_offscreen.py`, run under
