@@ -18,7 +18,7 @@ pi = ["picamera2>=0.3"]          # Raspberry Pi camera (installed on the Pi)
 plot = ["matplotlib>=3.5"]    # PNG spectrum + waterfall rendering
 wavelet = ["PyWavelets>=1.3"] # optional wavelet decomposition (analysis.transforms)
 gui = ["PySide6>=6.5", "pyqtgraph>=0.13"]  # interactive desktop GUI (ui.qt)
-dev = ["pytest>=7", "pytest-qt>=4", "matplotlib>=3.5", "PyWavelets>=1.3"]
+dev = ["pytest>=7", "pytest-qt>=4", "pytest-cov>=4", "matplotlib>=3.5", "PyWavelets>=1.3"]
 
 [project.scripts]
 spectrometerv2 = "app.main:main"
@@ -39,3 +39,16 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# The GUI widgets are only measured when Qt is present (run with the [gui] extra
+# and QT_QPA_PLATFORM=offscreen); in a headless run they don't execute and will
+# read as uncovered.
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:", "raise NotImplementedError"]
