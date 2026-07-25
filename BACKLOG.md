@@ -45,6 +45,6 @@ document and a Presentation/Export section to the Architecture document.
 - **Advanced analysis** — **done.** FFT and wavelet decomposition
   (`analysis/transforms.py`; wavelet gated behind the `[wavelet]` extra) and
   simulated-annealing line fitting (`analysis/annealing.py`, NumPy-only) are all
-  ported from the `Docs/reference/Patch_-_Wtx_+_SA` material. SA is validated by
+  ported from the original PySpectrometer2 patch material. SA is validated by
   seeded parametric recovery tests (known peaks + set SNR → recover within
   tolerance, across multiple seeds).

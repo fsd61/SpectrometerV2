@@ -1,7 +1,7 @@
 """Simulated-annealing global optimizer (Migration Plan Phase 7 math).
 
-Ported from the reference patch material (`Docs/reference/Patch_-_Wtx_+_SA/`),
-based on DiGennaro & Cowburn, "Parametric Estimation of Time-Domain NMR Signals
+Ported from the original PySpectrometer2 patch material, based on
+DiGennaro & Cowburn, "Parametric Estimation of Time-Domain NMR Signals
 Using Simulated Annealing", J. Magn. Reson. 96, 582-588 (1992), with four
 practical refinements retained from that work:
 

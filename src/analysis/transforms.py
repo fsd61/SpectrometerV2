@@ -1,7 +1,7 @@
 """Frequency-domain and multiresolution transforms (Migration Plan Phase 7 math).
 
-Two optional analyses ported from the reference patch material
-(`Docs/reference/Patch_-_Wtx_+_SA/`):
+Two optional analyses ported from the original PySpectrometer2 patch
+material:
 
 * :func:`fft_spectrum` — a one-sided FFT magnitude spectrum. NumPy only, so it
   is always available.
