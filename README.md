@@ -39,7 +39,6 @@ config/         config.ini (+ alternates)              (externalized config)
 tests/          unit / integration / regression / hardware / platform
 Docs/           engineering documents + reference papers
 Original_Pyspectrometer2/   Preserved upstream baseline (Les Wright)
-Docs/reference/            Preserved historical patch material (reference only)
 ```
 
 ## Status
