@@ -112,6 +112,60 @@ seed = 0
 lock_seed = true
 
 
+[influx]
+# Also write each spectrum's scalar features to InfluxDB.
+#   (type=bool; default=false)
+enabled = false
+
+# InfluxDB major version of the target server (v3 uses the v2 write API).
+#   (type=int; default=2; choices=1, 2, 3)
+version = 2
+
+# Base URL of the InfluxDB server (local or remote).
+#   (type=str; default=http://localhost:8086)
+url = http://localhost:8086
+
+# Organization (v2/v3).
+#   (type=str; default=)
+org = 
+
+# Bucket to write to (v2/v3; on v3 this is the database name).
+#   (type=str; default=spectrometer)
+bucket = spectrometer
+
+# API token, sent as an Authorization header (v2/v3).
+#   (type=str; default=)
+token = 
+
+# Database name (v1).
+#   (type=str; default=spectrometer)
+database = spectrometer
+
+# Username (v1, optional).
+#   (type=str; default=)
+username = 
+
+# Password (v1, optional).
+#   (type=str; default=)
+password = 
+
+# InfluxDB measurement name for the written points.
+#   (type=str; default=spectrum)
+measurement = spectrum
+
+# Timestamp precision.
+#   (type=str; default=ns; choices=ns, us, ms, s)
+precision = ns
+
+# HTTP write timeout, seconds.
+#   (type=float; default=5.0; min=0.1; max=120.0)
+timeout = 5.0
+
+# Build and log the line protocol but do not POST it — for testing without a live server.
+#   (type=bool; default=false)
+dry_run = false
+
+
 [processing]
 # Sensor row used for the 1-D spectral slice; -1 = auto/center.
 #   (type=int; default=-1; min=-1)

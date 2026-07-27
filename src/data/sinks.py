@@ -34,6 +34,25 @@ class NullSink(SpectrumSink):
         return None
 
 
+class MultiSink(SpectrumSink):
+    """Fan a spectrum out to several sinks (e.g. CSV + InfluxDB telemetry).
+
+    Returns the *first* sink's result, so callers that expect the primary
+    handle (e.g. the CSV path) keep working when a telemetry sink is teed in.
+    """
+
+    def __init__(self, sinks):
+        self._sinks = list(sinks)
+
+    def write(self, spectrum: Spectrum, name: Optional[str] = None) -> Any:
+        result = None
+        for i, sink in enumerate(self._sinks):
+            handle = sink.write(spectrum, name=name)
+            if i == 0:
+                result = handle
+        return result
+
+
 class CsvSpectrumSink(SpectrumSink):
     """Write a spectrum as CSV plus a sidecar ``<name>.meta.json`` of metadata.
 

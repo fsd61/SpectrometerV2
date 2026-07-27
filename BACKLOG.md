@@ -9,14 +9,18 @@ A dashboard/time-series story — **Grafana**, **InfluxDB**, and/or **SQL** — 
 wanted but is a feature workstream of its own (new requirements, an ingestion
 path, schema design, and a running service). Deferred until after Phase 8.
 
-**Design seam already in place:** the Data Persistence layer is built around a
-pluggable `SpectrumSink` interface (`src/data/sinks.py`). Today the default is
-`CsvSpectrumSink` (CSV + sidecar metadata JSON). Future backends —
-`InfluxDbSpectrumSink`, `SqlSpectrumSink`, a Grafana-friendly exporter — are just
-additional implementations of the same interface, so adding them is *additive*
-and never touches the scientific core (support without coupling).
-`Spectrum.metadata` already carries what a time-series row needs (calibration,
-generation params, timestamps, frame info).
+**Design seam in place, and the InfluxDB write path is now built:** the Data
+Persistence layer is a pluggable `SpectrumSink` interface (`src/data/sinks.py`);
+the default is `CsvSpectrumSink`. An optional, off-by-default
+`InfluxDbSpectrumSink` (`src/data/influx.py`) now writes scalar features per
+acquisition to InfluxDB **v1/v2/v3** over stdlib HTTP (no client dependency),
+tagged `source` for measurement integrity; `MultiSink` tees it alongside CSV via
+`build_sink()`. Remaining future backends — `SqlSpectrumSink`, a Grafana-friendly
+exporter — are the same additive pattern, never touching the scientific core.
+`Spectrum.metadata` carries what a time-series row needs (calibration, generation
+params, timestamps, frame info). **Still out of scope / future:** the *read* side
+(Grafana dashboards, or querying a v3 server, which would need `influxdb3-python`)
+and formal `TEL-00x` requirements.
 
 When picked up, add explicit requirements (e.g. TEL-00x) to the Requirements
 document and a Presentation/Export section to the Architecture document.

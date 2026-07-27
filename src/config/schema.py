@@ -133,6 +133,35 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "draws a fresh seed.",
         ),
     },
+    # Optional InfluxDB telemetry sink (off by default). Writes scalar features
+    # per acquisition as line protocol; the InfluxDB *server* is installed and run
+    # separately — this only needs stdlib HTTP, no client library.
+    "influx": {
+        "enabled": Field("bool", False, "Also write each spectrum's scalar features to InfluxDB."),
+        "version": Field(
+            "int", 2,
+            "InfluxDB major version of the target server (v3 uses the v2 write API).",
+            choices=[1, 2, 3],
+        ),
+        "url": Field("str", "http://localhost:8086",
+                     "Base URL of the InfluxDB server (local or remote)."),
+        "org": Field("str", "", "Organization (v2/v3)."),
+        "bucket": Field("str", "spectrometer", "Bucket to write to (v2/v3; on v3 this is the database name)."),
+        "token": Field("str", "", "API token, sent as an Authorization header (v2/v3)."),
+        "database": Field("str", "spectrometer", "Database name (v1)."),
+        "username": Field("str", "", "Username (v1, optional)."),
+        "password": Field("str", "", "Password (v1, optional)."),
+        "measurement": Field("str", "spectrum", "InfluxDB measurement name for the written points."),
+        "precision": Field(
+            "str", "ns", "Timestamp precision.", choices=["ns", "us", "ms", "s"],
+        ),
+        "timeout": Field("float", 5.0, "HTTP write timeout, seconds.", min=0.1, max=120.0),
+        "dry_run": Field(
+            "bool", False,
+            "Build and log the line protocol but do not POST it — for testing "
+            "without a live server.",
+        ),
+    },
     "processing": {
         "slice_row": Field(
             "int", -1,

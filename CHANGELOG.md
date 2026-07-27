@@ -6,6 +6,38 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-07-27 — Telemetry: optional InfluxDB sink (v1/v2/v3, zero-dep)
+**Added**
+- `data/influx.py`: an optional `InfluxDbSpectrumSink` that writes each
+  acquisition's **scalar features** to InfluxDB as one line-protocol point, over
+  **stdlib HTTP — no client library**, so enabling telemetry adds no dependency
+  (the InfluxDB *server* is installed/run separately, local or remote). Off by
+  default.
+- One code path covers **v1, v2, and v3**: the write payload is identical
+  (line protocol); only the endpoint/auth differ (`/write?db=` for v1;
+  `/api/v2/write?org=&bucket=` + `Token` header for v2; v3 rides the v2 API with
+  `bucket` = database). Selected by `[influx] version`.
+- **Measurement integrity:** every point is tagged `source` (synthetic / camera /
+  unknown, from `Spectrum.metadata`), so simulated data can never masquerade as
+  real in a dashboard. Telemetry write failures are logged and swallowed — a
+  dashboard write must never break an acquisition.
+- Fields: `n_samples`, `total_flux`, `peak_intensity`, `calibrated`, plus a
+  `summarize_features()` scalar summary of the analysis (peak count + strongest
+  line's nm/pixel/intensity/FWHM/SNR). New `MultiSink` tees CSV + InfluxDB;
+  `build_sink(config, output)` wires it into `run` and `generate-synthetic`.
+- New `[influx]` config section (enabled, version, url, org/bucket/token,
+  database/username/password, measurement, precision, timeout, **dry_run**);
+  `config.ini.example` regenerated. `dry_run` prints the exact line protocol
+  without a server — e.g.
+  `spectrometerv2 --set influx.enabled=true --set influx.dry_run=true generate-synthetic`.
+- 14 tests (line-protocol format + escaping, timestamp precision, per-version
+  endpoint/auth, injected-poster body/headers, dry-run, swallowed failure, tee).
+  Sandbox suite 221 passed, 1 skipped.
+
+> Scope: **write-only**. What the user does downstream (Grafana or otherwise) is
+> out of scope. Querying a v3 server would need `influxdb3-python`, but the write
+> path here is forward-compatible via v3's v1/v2 write endpoints.
+
 ### 2026-07-23 — GUI Phase 7, milestone 8: OV9281 hardware validation + snapshot fixes
 **Validated on hardware** — an Arducam **USB OV9281** on Windows (the `usb`/
 opencv backend, `device_index=1`, native 1280×800, delivered as 3-channel BGR
