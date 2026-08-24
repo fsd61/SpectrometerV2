@@ -46,3 +46,17 @@ Thumbs.db
 
 # Leftover empty wrapper dir (mount blocks deletion; safe to remove from Windows)
 .pyspectrometer2_emptied/
+
+# Root-level run output from ad-hoc CLI invocations (the /out/ and /snapshots/
+# rules above only cover the default output dirs).
+/acquisition.csv
+/acquisition.meta.json
+/acquisition.png
+/waterfall.png
+
+# Profiling / import-timing artifacts
+/importtime.log
+/startup.prof
+
+# Mount write-permission probe
+/.git-write-test

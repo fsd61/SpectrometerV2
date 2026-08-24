@@ -1,0 +1,544 @@
+--- /mnt/user-data/uploads/specFunctions.py	2026-05-18 12:38:34.325153000 +0000
++++ /mnt/user-data/outputs/specFunctions.py	2026-05-18 12:41:49.184772000 +0000
+@@ -398,6 +398,541 @@
+ 	calcomplete = True
+ 	return calcomplete
+ 
++
++# =============================================================================
++# ANALYSIS EXTENSIONS  (FFT, Wavelet, Simulated Annealing, Plotting)
++# Les Wright / Extended additions
++# Requires: numpy (already present), scipy, pywt, matplotlib
++#   pip install scipy pywt matplotlib
++# =============================================================================
++
++import math
++import random
++
++# ---------------------------------------------------------------------------
++# FFT
++# ---------------------------------------------------------------------------
++
++def fft_spectrum(intensity, sample_spacing=1.0):
++    """
++    Compute the FFT of a spectral intensity array.
++
++    Parameters
++    ----------
++    intensity     : array-like  – the raw intensity values from the spectrometer
++    sample_spacing: float       – spacing between samples (pixels or nm).
++                                  Default 1.0 (pixel units).
++
++    Returns
++    -------
++    dict with keys:
++        'freqs'      – positive frequency bins (cycles per sample_spacing unit)
++        'magnitudes' – corresponding magnitude spectrum (one-sided)
++        'full_fft'   – complex full FFT result (if you need phase info)
++    """
++    import numpy as np
++    y = np.asarray(intensity, dtype=float)
++    n = len(y)
++    fft_result = np.fft.rfft(y)
++    freqs      = np.fft.rfftfreq(n, d=sample_spacing)
++    magnitudes = np.abs(fft_result) / n          # normalise by length
++    return {
++        'freqs'      : freqs,
++        'magnitudes' : magnitudes,
++        'full_fft'   : fft_result,
++    }
++
++
++# ---------------------------------------------------------------------------
++# Wavelet transform
++# ---------------------------------------------------------------------------
++
++def wavelet_transform(intensity, wavelet='db4', level=4):
++    """
++    Perform a discrete wavelet decomposition on spectral intensity data.
++
++    Parameters
++    ----------
++    intensity : array-like – the raw intensity values
++    wavelet   : str        – PyWavelets wavelet name.  Good choices for
++                             smooth spectral data: 'db4', 'db6', 'sym5',
++                             'coif3'.  Default 'db4'.
++    level     : int        – decomposition depth.  4 is a sensible default
++                             for 800-pixel data; reduce to 2-3 for shorter
++                             arrays.
++
++    Returns
++    -------
++    dict with keys:
++        'coeffs'       – list [cA_n, cD_n, ..., cD_1]  (PyWavelets convention)
++        'approximation'– the low-frequency approximation at the chosen level
++        'details'      – list of detail (high-frequency) arrays, finest first
++        'wavelet'      – wavelet name used
++        'level'        – level used
++    """
++    try:
++        import pywt
++    except ImportError:
++        raise ImportError(
++            "PyWavelets is required for wavelet_transform().\n"
++            "Install it with:  pip install pywt"
++        )
++    import numpy as np
++    y      = np.asarray(intensity, dtype=float)
++    coeffs = pywt.wavedec(y, wavelet, level=level)
++    # coeffs[0] = approximation, coeffs[1:] = details (coarsest to finest)
++    return {
++        'coeffs'        : coeffs,
++        'approximation' : coeffs[0],
++        'details'       : coeffs[1:],
++        'wavelet'       : wavelet,
++        'level'         : level,
++    }
++
++
++# ---------------------------------------------------------------------------
++# Simulated Annealing
++# ---------------------------------------------------------------------------
++# Algorithm based on:
++#   DiGennaro & Cowburn, "Parametric Estimation of Time-Domain NMR Signals
++#   Using Simulated Annealing", J. Magn. Reson. 96, 582-588 (1992).
++#
++# Key refinements from that work:
++#   1. Auto-tuning of T0 to achieve 80-85% initial acceptance rate
++#   2. Markov chain length scaled by number of spectral components
++#   3. Quench point: switch to pure iterative improvement after N cycles
++#      for ~10x speedup in final convergence
++#   4. Threshold-based termination (R_e < tol) rather than exhausting
++#      max_iter, avoiding the 10x cost of over-running
++# ---------------------------------------------------------------------------
++
++def _tune_T0(objective, x0, bounds, step_size, target_rate=0.825,
++             n_probe=200, random_seed=None):
++    """
++    Automatically find an initial temperature T0 that produces approximately
++    target_rate (default 82.5%, midpoint of the 80-85% range from the paper)
++    acceptance of uphill moves.  Returns the tuned T0.
++    """
++    import numpy as np
++    if random_seed is not None:
++        random.seed(random_seed)
++        np.random.seed(random_seed)
++
++    x  = np.array(x0, dtype=float)
++    n  = len(x)
++    T  = 1.0
++    # Collect cost deltas from random perturbations
++    deltas = []
++    for _ in range(n_probe):
++        perturb = np.array([random.uniform(-step_size, step_size) for _ in range(n)])
++        xc = x + perturb
++        if bounds is not None:
++            for i, (lo, hi) in enumerate(bounds):
++                xc[i] = max(lo, min(hi, xc[i]))
++        delta = float(objective(xc)) - float(objective(x))
++        if delta > 0:
++            deltas.append(delta)
++
++    if not deltas:
++        return 1.0   # landscape is convex — any small T will do
++
++    # Solve: exp(-mean_delta / T0) = target_rate  =>  T0 = -mean_delta / ln(target_rate)
++    mean_delta = float(np.mean(deltas))
++    T0 = -mean_delta / math.log(target_rate)
++
++    # Verify and nudge upward until acceptance >= target_rate
++    for _ in range(50):
++        accepts = sum(
++            1 for d in deltas if random.random() < math.exp(-d / T0)
++        )
++        rate = accepts / len(deltas)
++        if rate >= target_rate:
++            break
++        T0 *= 1.5
++
++    return T0
++
++
++def simulated_annealing(
++    objective,
++    x0,
++    schedule         = 'medium',
++    T0               = None,
++    n_components     = None,
++    markov_factor    = 600,
++    quench_cycle     = 12,
++    quench_decrement = 0.70,
++    tol              = 1e-5,
++    max_cycles       = 200,
++    step_size        = 0.1,
++    bounds           = None,
++    random_seed      = None,
++    callback         = None,
++):
++    """
++    Minimise *objective* using simulated annealing.
++
++    Based on DiGennaro & Cowburn (J. Magn. Reson. 96, 582-588, 1992), with
++    four key refinements for practical spectral use:
++
++      1. Auto-tuned T0  – T0 is set automatically to yield ~82% initial
++                          acceptance if you leave T0=None (recommended).
++      2. Markov chains  – chain length = markov_factor * n_components, so
++                          the algorithm scales naturally with peak count.
++      3. Quench point   – after quench_cycle temperature cycles the control
++                          parameter is set to zero, switching to pure iterative
++                          improvement for fast final convergence (~10x speedup).
++      4. Threshold stop – terminates as soon as the normalised error R_e drops
++                          below tol (default 1e-5), avoiding the 10x cost of
++                          over-running.
++
++    Parameters
++    ----------
++    objective        : callable  – f(x) -> float.  Function to minimise.
++    x0               : list      – initial parameter guess.
++    schedule         : str or callable
++                         Cooling schedule preset:
++                           'fast'   – rapid cooling (simpler problems)
++                           'medium' – balanced, recommended starting point
++                           'slow'   – gentle cooling, many local minima
++                         Or a callable f(T0, cycle) -> T for full control.
++    T0               : float or None
++                         Initial temperature.  Leave as None to auto-tune
++                         to ~82% acceptance rate (strongly recommended).
++    n_components     : int or None
++                         Number of spectral peaks/components expected.
++                         Sets Markov chain length = markov_factor * n_components.
++                         If None, defaults to 10 * len(x0).
++    markov_factor    : int   – multiplier for Markov chain length (default 600).
++    quench_cycle     : int   – temperature cycle at which T is set to zero
++                               for pure iterative improvement (default 12).
++    quench_decrement : float – fractional decrement applied once bounds are
++                               tightened after the quench point (default 0.70,
++                               i.e. 70% reduction per cycle post-quench).
++    tol              : float – normalised error threshold R_e for early
++                               termination (default 1e-5).
++    max_cycles       : int   – hard cap on temperature cycles (default 200).
++    step_size        : float – maximum perturbation per parameter per step.
++    bounds           : list of (min, max) per parameter, or None.
++    random_seed      : int or None.
++    callback         : callable or None
++                         Called at the end of each temperature cycle as
++                         callback(cycle, x_best, cost_best, T).
++                         Return True to stop early.
++
++    Returns
++    -------
++    dict with keys:
++        'x'            – best parameter vector found
++        'cost'         – objective value at best x
++        'history_cost' – best cost at end of each temperature cycle
++        'history_T'    – temperature at end of each cycle
++        'cycles'       – number of temperature cycles completed
++        'markov_len'   – Markov chain length used
++        'T0'           – initial temperature used (auto or supplied)
++        'schedule'     – schedule name
++        'quenched'     – True if quench point was reached
++        'converged'    – True if tol threshold was met
++    """
++    import numpy as np
++
++    if random_seed is not None:
++        random.seed(random_seed)
++        np.random.seed(random_seed)
++
++    # ------------------------------------------------------------------ #
++    # 1. Resolve cooling schedule
++    # ------------------------------------------------------------------ #
++    _schedules = {
++        'fast'  : lambda T0, c: T0 / (1.0 + math.log(1.0 + c)),
++        'medium': lambda T0, c: T0 * (0.90 ** c),
++        'slow'  : lambda T0, c: T0 / (1.0 + 0.01 * c),
++    }
++    if callable(schedule):
++        cool          = schedule
++        schedule_name = 'custom'
++    elif schedule in _schedules:
++        cool          = _schedules[schedule]
++        schedule_name = schedule
++    else:
++        raise ValueError(
++            f"Unknown schedule '{schedule}'.  "
++            f"Choose from {list(_schedules.keys())} or pass a callable."
++        )
++
++    x_current    = np.array(x0, dtype=float)
++    n_params     = len(x_current)
++    cost_current = float(objective(x_current))
++    cost_initial = cost_current
++
++    # ------------------------------------------------------------------ #
++    # 2. Auto-tune T0 if not supplied
++    # ------------------------------------------------------------------ #
++    if T0 is None:
++        print("SA: auto-tuning initial temperature...")
++        T0 = _tune_T0(objective, x0, bounds, step_size,
++                      random_seed=random_seed)
++        print(f"SA: T0 = {T0:.4g}  (targeting ~82% acceptance)")
++    T = T0
++
++    # ------------------------------------------------------------------ #
++    # 3. Markov chain length
++    # ------------------------------------------------------------------ #
++    if n_components is None:
++        n_components = max(1, n_params // 3)   # rough heuristic
++    markov_len = markov_factor * n_components
++    print(f"SA: Markov chain length = {markov_len}  "
++          f"({markov_factor} x {n_components} components)")
++
++    # ------------------------------------------------------------------ #
++    # Working bounds (tightened after quench point)
++    # ------------------------------------------------------------------ #
++    if bounds is not None:
++        work_bounds = [list(b) for b in bounds]
++    else:
++        work_bounds = None
++
++    x_best    = x_current.copy()
++    cost_best = cost_current
++
++    history_cost = [cost_best]
++    history_T    = [T0]
++
++    quenched  = False
++    converged = False
++
++    def _clip(x, wb):
++        if wb is None:
++            return x
++        for i, (lo, hi) in enumerate(wb):
++            x[i] = max(lo, min(hi, x[i]))
++        return x
++
++    # ------------------------------------------------------------------ #
++    # Main loop: temperature cycles
++    # ------------------------------------------------------------------ #
++    for cycle in range(1, max_cycles + 1):
++
++        accepts = 0
++
++        # Inner Markov chain
++        for _ in range(markov_len):
++            perturb     = np.array(
++                [random.uniform(-step_size, step_size) for _ in range(n_params)]
++            )
++            x_candidate = _clip(x_current + perturb, work_bounds)
++            cost_cand   = float(objective(x_candidate))
++            delta       = cost_cand - cost_current
++
++            if delta < 0 or (T > 0 and random.random() < math.exp(-delta / T)):
++                x_current    = x_candidate
++                cost_current = cost_cand
++                accepts     += 1
++
++            if cost_current < cost_best:
++                x_best    = x_current.copy()
++                cost_best = cost_current
++
++        history_cost.append(cost_best)
++        history_T.append(T)
++
++        # Normalised error (relative improvement from start)
++        if cost_initial != 0:
++            R_e = abs(cost_best - cost_initial) / abs(cost_initial)
++        else:
++            R_e = abs(cost_best)
++
++        # ---------------------------------------------------------- #
++        # 4. Threshold-based termination
++        # ---------------------------------------------------------- #
++        if cost_best <= tol or R_e >= (1.0 - tol):
++            converged = True
++            print(f"SA: converged at cycle {cycle}  "
++                  f"(R_e={R_e:.2e}, cost={cost_best:.4g})")
++            break
++
++        # ---------------------------------------------------------- #
++        # 3. Quench point: switch to pure iterative improvement
++        # ---------------------------------------------------------- #
++        if not quenched and cycle >= quench_cycle:
++            quenched   = True
++            T          = 0.0
++            step_size *= (1.0 - quench_decrement)
++            # Tighten bounds around current best to restrict search domain
++            if work_bounds is not None:
++                for i, (lo, hi) in enumerate(work_bounds):
++                    span = (hi - lo) * (1.0 - quench_decrement) / 2.0
++                    work_bounds[i] = [
++                        max(lo, x_best[i] - span),
++                        min(hi, x_best[i] + span),
++                    ]
++            print(f"SA: quench point reached at cycle {cycle}  "
++                  f"(cost={cost_best:.4g}) — switching to iterative improvement")
++        elif not quenched:
++            T = cool(T0, cycle)
++
++        # Optional per-cycle callback
++        if callback is not None:
++            stop = callback(cycle, x_best.copy(), cost_best, T)
++            if stop:
++                break
++
++    return {
++        'x'            : x_best,
++        'cost'         : cost_best,
++        'history_cost' : history_cost,
++        'history_T'    : history_T,
++        'cycles'       : cycle,
++        'markov_len'   : markov_len,
++        'T0'           : T0,
++        'schedule'     : schedule_name,
++        'quenched'     : quenched,
++        'converged'    : converged,
++    }
++
++
++# ---------------------------------------------------------------------------
++# Plotting
++# ---------------------------------------------------------------------------
++
++def plot_analysis(
++    wavelengths,
++    intensity,
++    fft_result      = None,
++    wavelet_result  = None,
++    sa_result       = None,
++    title           = 'Spectral Analysis',
++    save_path       = None,
++):
++    """
++    Plot the original spectrum alongside FFT, wavelet, and/or SA results.
++
++    Parameters
++    ----------
++    wavelengths    : array-like – x-axis (nm or pixel numbers)
++    intensity      : array-like – raw intensity values
++    fft_result     : dict or None – output of fft_spectrum()
++    wavelet_result : dict or None – output of wavelet_transform()
++    sa_result      : dict or None – output of simulated_annealing()
++    title          : str          – overall figure title
++    save_path      : str or None  – if given, saves the figure to this path
++                                    (e.g. 'analysis.png') instead of showing it
++
++    Returns
++    -------
++    matplotlib Figure object (can be embedded in further GUI code)
++    """
++    try:
++        import matplotlib
++        matplotlib.use('Agg' if save_path else 'TkAgg')
++        import matplotlib.pyplot as plt
++        import matplotlib.gridspec as gridspec
++    except ImportError:
++        raise ImportError(
++            "matplotlib is required for plot_analysis().\n"
++            "Install it with:  pip install matplotlib"
++        )
++    import numpy as np
++
++    # Work out how many sub-plots we need
++    panels = ['spectrum']
++    if fft_result     is not None: panels.append('fft')
++    if wavelet_result is not None: panels.append('wavelet')
++    if sa_result      is not None: panels.append('sa')
++
++    n = len(panels)
++    fig = plt.figure(figsize=(12, 3.5 * n), constrained_layout=True)
++    fig.suptitle(title, fontsize=14, fontweight='bold')
++    gs  = gridspec.GridSpec(n, 1, figure=fig)
++    axes = [fig.add_subplot(gs[i]) for i in range(n)]
++
++    idx = 0  # axis counter
++
++    # -- Original spectrum --------------------------------------------------
++    ax = axes[idx]; idx += 1
++    ax.plot(wavelengths, intensity, color='steelblue', linewidth=1.0)
++    ax.set_title('Raw Spectrum')
++    ax.set_xlabel('Wavelength (nm)')
++    ax.set_ylabel('Intensity')
++    ax.grid(True, alpha=0.3)
++
++    # -- FFT ----------------------------------------------------------------
++    if fft_result is not None:
++        ax = axes[idx]; idx += 1
++        freqs = fft_result['freqs']
++        mags  = fft_result['magnitudes']
++        # Skip the DC component (index 0) for clarity
++        ax.plot(freqs[1:], mags[1:], color='darkorange', linewidth=1.0)
++        ax.set_title('FFT Magnitude Spectrum')
++        ax.set_xlabel('Spatial frequency (cycles / sample)')
++        ax.set_ylabel('Magnitude')
++        ax.grid(True, alpha=0.3)
++
++    # -- Wavelet ------------------------------------------------------------
++    if wavelet_result is not None:
++        ax = axes[idx]; idx += 1
++        approx  = wavelet_result['approximation']
++        details = wavelet_result['details']
++        wavelet = wavelet_result['wavelet']
++        level   = wavelet_result['level']
++
++        x_approx = np.linspace(
++            float(wavelengths[0]), float(wavelengths[-1]), len(approx)
++        )
++        ax.plot(x_approx, approx, color='mediumseagreen', linewidth=1.5,
++                label=f'Approximation (level {level})')
++
++        colors = plt.cm.autumn(np.linspace(0.2, 0.9, len(details)))
++        for i, (det, col) in enumerate(zip(details, colors)):
++            x_det = np.linspace(
++                float(wavelengths[0]), float(wavelengths[-1]), len(det)
++            )
++            ax.plot(x_det, det, linewidth=0.8, color=col,
++                    label=f'Detail level {level - i}', alpha=0.7)
++
++        ax.set_title(f'Wavelet Decomposition  ({wavelet}, level {level})')
++        ax.set_xlabel('Wavelength (nm)')
++        ax.set_ylabel('Coefficient value')
++        ax.legend(fontsize=7, loc='upper right')
++        ax.grid(True, alpha=0.3)
++
++    # -- Simulated Annealing convergence ------------------------------------
++    if sa_result is not None:
++        ax = axes[idx]; idx += 1
++        history_cost = sa_result['history_cost']
++        history_T    = sa_result['history_T']
++        iters        = range(len(history_cost))
++
++        ax2 = ax.twinx()
++        line1, = ax.plot(iters, history_cost, color='crimson',
++                         linewidth=1.0, label='Best cost')
++        line2, = ax2.plot(iters, history_T, color='royalblue',
++                          linewidth=0.8, linestyle='--', alpha=0.6,
++                          label='Temperature')
++        ax.set_title(
++            f"Simulated Annealing Convergence  "
++            f"(schedule: {sa_result['schedule']}, "
++            f"final cost: {sa_result['cost']:.4g})"
++        )
++        ax.set_xlabel('Iteration')
++        ax.set_ylabel('Best cost', color='crimson')
++        ax2.set_ylabel('Temperature', color='royalblue')
++        ax.tick_params(axis='y', labelcolor='crimson')
++        ax2.tick_params(axis='y', labelcolor='royalblue')
++        lines = [line1, line2]
++        ax.legend(lines, [l.get_label() for l in lines],
++                  fontsize=8, loc='upper right')
++        ax.grid(True, alpha=0.3)
++
++    if save_path:
++        fig.savefig(save_path, dpi=150)
++        print(f"Analysis plot saved to: {save_path}")
++    else:
++        plt.show()
++
++    return fig
++
++
+ def generateGraticule(wavelengthData):
+ 	low = wavelengthData[0] #get lowet number in list
+ 	high = wavelengthData[len(wavelengthData)-1] #get highest number

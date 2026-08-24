@@ -1,0 +1,15 @@
+P_green = 820    # ← your measured value
+P_red   = 1340   # ← your measured value
+P_ir    = 1680   # ← your measured value
+
+slope  = (650 - 520) / (P_red - P_green)
+offset = 520 - slope * P_green
+
+def pixel_to_nm(px): return offset + slope * px
+
+measured = pixel_to_nm(P_ir)
+print(f"Measured peak: {measured:.1f} nm")
+
+if   abs(measured - 810) <= 15: print("PASS")
+elif abs(measured - 810) <= 30: print("CAUTION")
+else:                            print("FAIL")

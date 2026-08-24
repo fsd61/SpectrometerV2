@@ -1,0 +1,37 @@
+--- PySpectrometer2.py
++++ PySpectrometer2.py
+@@ -20,6 +20,13 @@
+ # ==============================================================================
+ # Global Configuration Framework for Dispersion Orientation
+ # ==============================================================================
++DISPERSION_MODE = 'vertical'  # Options: 'horizontal' or 'vertical'
++X_CENTER = 400                # Target center column (used if mode is 'vertical')
++Y_CENTER = 300                # Target center row (used if mode is 'horizontal')
++APERTURE_WIDTH = 5            # Multi-pixel cross-averaging window width for SNR scaling
++
+ # ==============================================================================
+ 
+@@ -104,8 +111,19 @@
+         # Acquire frame from the camera buffer
+         frame = camera.capture()
+         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
++        half_w = APERTURE_WIDTH // 2
+ 
+-        # Legacy horizontal row-averaging over a small row band:
+-        # sample_slice = gray_frame[y_center : y_center + 3, 0:width]
+-        # profile_1d = np.mean(sample_slice, axis=0)
++        if DISPERSION_MODE == 'vertical':
++            # Rigorous Vertical Row Slice Extraction (Vertical Dispersion Along Y-Axis)
++            # Slice along the entire height, bounded by the horizontal column aperture
++            vertical_slice = gray_frame[:, X_CENTER - half_w : X_CENTER + half_w + 1]
++            # Average horizontally across the columns (axis=1) to yield 1D profile
++            profile_1d = np.mean(vertical_slice, axis=1)
++        else:
++            # Unified Horizontal Row Slice Extraction (Horizontal Dispersion Along X-Axis)
++            # Slice along the entire width, bounded by the vertical row aperture
++            horizontal_slice = gray_frame[Y_CENTER - half_w : Y_CENTER + half_w + 1, :]
++            # Average vertically across the rows (axis=0) to yield 1D profile
++            profile_1d = np.mean(horizontal_slice, axis=0)
+ 
+         # Proceed to wavelet transformation and simulated annealing routines
+ 

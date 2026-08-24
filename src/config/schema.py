@@ -76,6 +76,33 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "Number of recent frames (time rows) kept in the live waterfall.",
             min=10, max=4000,
         ),
+        "waterfall_full_scale": Field(
+            "float", 0.0,
+            "Fixed intensity ceiling for the waterfall colour scale, in raw "
+            "detector units (255 for an 8-bit path, 1023 for 10-bit). 0 = scale "
+            "to the brightest sample currently held in the buffer. A fixed "
+            "ceiling keeps brightness comparable between frames and between "
+            "sessions; the 0 fallback only keeps it stable within one buffer.",
+            min=0.0,
+        ),
+        "waterfall_colormap": Field(
+            "str", "inferno",
+            "Colormap for the live waterfall and rendered waterfall PNGs. All "
+            "choices are perceptually uniform except 'gray'; 'inferno' and "
+            "'magma' give the best contrast at the dark end, where faint lines "
+            "live. Note these map intensity, not wavelength: above 780 nm a "
+            "true-colour scale would render black.",
+            choices=["inferno", "magma", "viridis", "plasma", "gray"],
+        ),
+        "waterfall_source": Field(
+            "str", "raw",
+            "Which trace the waterfall records: 'raw' (as acquired) or "
+            "'smoothed' (after the Savitzky-Golay filter). Raw is the default, "
+            "matching the original tool: persistence across rows is what "
+            "distinguishes a real line from noise, and smoothing first both "
+            "pre-empts that judgement and attenuates narrow lines.",
+            choices=["raw", "smoothed"],
+        ),
         "snapshot_dir": Field(
             "path", "snapshots",
             "Directory where the GUI snapshot key (s) writes CSV + metadata.",

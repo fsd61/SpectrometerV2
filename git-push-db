@@ -1,0 +1,5 @@
+git switch -c feature/db
+git add -A
+git status --short                   # expect 23 files. Stop if it's 131.
+git commit -m "persistence: locked core schema, SQLite store, user field manifest"
+git push -u origin feature/db
