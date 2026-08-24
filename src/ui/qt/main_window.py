@@ -50,10 +50,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(1100, 700)
 
         frames = 256
+        full_scale = None
+        colormap = "inferno"
+        waterfall_source = "raw"
         self._snapshot_dir = "snapshots"
         if config is not None:
             gui = config.section("gui")
             frames = int(gui.get("waterfall_frames", 256))
+            # 0 means "no fixed ceiling" in the INI (the schema has no null), so
+            # normalize it to None here rather than pushing the sentinel down.
+            scale = float(gui.get("waterfall_full_scale", 0.0) or 0.0)
+            full_scale = scale if scale > 0 else None
+            colormap = str(gui.get("waterfall_colormap", "inferno"))
+            waterfall_source = str(gui.get("waterfall_source", "raw"))
             self._snapshot_dir = str(gui.get("snapshot_dir", "snapshots"))
 
         self._params = LiveParams(measure=True)
@@ -68,7 +77,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._view = SpectrumView()
         self._view.plotClicked.connect(self._on_plot_click)
-        self._waterfall = WaterfallView(frames=frames)
+        self._waterfall = WaterfallView(
+            frames=frames, full_scale=full_scale, colormap=colormap,
+            use_smoothed=(waterfall_source == "smoothed"),
+        )
         splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         splitter.addWidget(self._view)
         splitter.addWidget(self._waterfall)
