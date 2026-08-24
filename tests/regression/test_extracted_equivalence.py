@@ -15,6 +15,7 @@ from . import _baseline as B
 from analysis.smoothing import savitzky_golay          # noqa: E402 (src on pythonpath)
 from analysis.peaks import peak_indexes                 # noqa: E402
 from calibration.wavelength import calibrate            # noqa: E402
+from ui.graticule import tens_and_fifties               # noqa: E402
 
 
 def _golden(name):
@@ -50,3 +51,17 @@ def test_calibration_equivalent_to_golden():
             assert res.wavelengths[int(pixel)] == pytest.approx(expected, abs=1e-6)
         # order must agree with the baseline's recorded polynomial message
         assert order_to_msg[res.order] == rec["messages"][2]
+
+
+def test_graticule_equivalent_to_golden():
+    """ui.graticule reproduces the baseline's generateGraticule marks.
+
+    The waterfall and spectrum views place their nm scale from these pixel
+    positions, so a divergence here would put every label on the wrong column.
+    """
+    g = _golden("graticule.json")
+    gc = _golden("calibration.json")["multi"]
+    axis = calibrate(gc["pixels"], gc["wavelengths"], gc["length"]).wavelengths
+    tens, fifties = tens_and_fifties(axis)
+    assert tens == g["tens"]
+    assert [[p, nm] for p, nm in fifties] == g["fifties"]

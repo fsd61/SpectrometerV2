@@ -37,9 +37,14 @@ def test_analyze_without_input_returns_2(tmp_path):
     assert main(_base(tmp_path) + ["analyze"]) == 2
 
 
-def test_usb_camera_without_hardware_fails_gracefully(tmp_path):
-    # No OpenCV/hardware in this environment -> CameraError -> graceful exit 1.
-    assert main(_base(tmp_path) + ["--set", "camera.backend=usb", "test-camera"]) == 1
+def test_usb_camera_open_failure_exits_gracefully(tmp_path):
+    # A device index that cannot exist -> CameraError -> graceful exit 1.
+    # Pinned rather than left at the default index 0: the point is that the
+    # error path exits cleanly, which must not depend on whether a camera
+    # happens to be plugged into this machine.
+    assert main(_base(tmp_path) + ["--set", "camera.backend=usb",
+                                   "--set", "camera.device_index=99",
+                                   "test-camera"]) == 1
 
 
 def test_invalid_config_returns_2(tmp_path):

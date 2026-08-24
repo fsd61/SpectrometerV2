@@ -378,13 +378,27 @@ class WaterfallBuffer:
     fall off. The spectral width is locked on the first push. Negative values are
     floored at zero, matching the spectrum display (a detector reads no negative
     light). Qt-free so it is unit tested without a display; the widget just paints
-    :meth:`image`.
+    :meth:`image` between :meth:`levels`.
+
+    ``full_scale`` fixes the display ceiling in raw detector units (255 for an
+    8-bit path, 1023 for 10-bit). It is what makes a waterfall a measurement
+    rather than a picture: with a fixed ceiling a dim frame renders dim and rows
+    stay comparable down the time axis. Left unset, the ceiling tracks the
+    brightest sample *currently held in the buffer* - still a relative scale, but
+    a stable one that only moves when a frame enters or leaves the history.
+    Per-frame renormalization (pyqtgraph's ``autoLevels``) is deliberately not
+    used: it re-bases brightness every repaint, so a noise-only frame blooms to
+    full scale and no two rows can be compared - destroying the one thing the
+    waterfall exists to show.
     """
 
-    def __init__(self, height: int = 256):
+    def __init__(self, height: int = 256, full_scale: Optional[float] = None):
         if height < 1:
             raise ValueError("height must be >= 1")
+        if full_scale is not None and float(full_scale) <= 0:
+            raise ValueError("full_scale must be > 0 when given")
         self.height = int(height)
+        self.full_scale = float(full_scale) if full_scale is not None else None
         self.width: Optional[int] = None
         self._img: Optional[np.ndarray] = None
 
@@ -401,6 +415,22 @@ class WaterfallBuffer:
     def image(self) -> Optional[np.ndarray]:
         """The current 2-D image (rows = time, newest first), or None if empty."""
         return self._img
+
+    def levels(self) -> Tuple[float, float]:
+        """The ``(low, high)`` intensity range the image should be painted over.
+
+        Floor is always 0 (a detector reads no negative light, and a floating
+        floor would make the background brightness meaningless). Ceiling is
+        ``full_scale`` when configured, else the brightest sample still in the
+        history. The fallback never returns 0 as the ceiling - an all-zero buffer
+        would otherwise give a degenerate range.
+        """
+        if self.full_scale is not None:
+            return (0.0, self.full_scale)
+        if self._img is None:
+            return (0.0, 1.0)
+        peak = float(self._img.max())
+        return (0.0, peak if peak > 0.0 else 1.0)
 
     def clear(self) -> None:
         self.width = None
