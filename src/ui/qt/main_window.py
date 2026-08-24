@@ -57,6 +57,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._snapshot_dir = str(gui.get("snapshot_dir", "snapshots"))
 
         self._params = LiveParams(measure=True)
+        self._sink = None                     # built lazily on first snapshot
         self._last_spectrum = None
         self._last_peaks: list[int] = []      # peak pixel indices, for click-snap
         self._cal_session = CalibrationSession()
@@ -185,13 +186,27 @@ class MainWindow(QtWidgets.QMainWindow):
             self._flash_status("Nothing to snapshot yet.")
             return
         try:
-            path = snapshot_spectrum(self._last_spectrum, self._snapshot_dir)
+            path = snapshot_spectrum(
+                self._last_spectrum, self._snapshot_dir, sink=self._snapshot_sink()
+            )
         except Exception as exc:  # noqa: BLE001 - report, keep window alive
             self._flash_status(f"Snapshot failed: {exc}")
             self.logger.error("Snapshot failed: %s", exc)
             return
         self._flash_status(f"Saved snapshot → {path}")
         self.logger.info("Saved snapshot → %s", path)
+
+    def _snapshot_sink(self):
+        """The assembled sink for GUI snapshots (CSV + any enabled backends).
+
+        Built once and reused, so an enabled SQLite store keeps a single
+        connection rather than reopening on every snapshot keypress.
+        """
+        if self._sink is None and self.config is not None:
+            from data.factory import build_sink
+
+            self._sink = build_sink(self.config, self._snapshot_dir)
+        return self._sink
 
     def act_quit(self) -> None:
         self.close()
@@ -214,7 +229,9 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         if self._engine is not None:
-            self._engine.set_calibration(result.wavelengths)
+            # Pass the fit itself, not just the axis, so every calibrated frame
+            # records which calibration produced it.
+            self._engine.set_calibration(result.wavelengths, result)
         saved = self._save_calibration(session)
         r2 = "" if result.r_squared is None else f", R²={result.r_squared:.5f}"
         tail = f" → {saved}" if saved else ""

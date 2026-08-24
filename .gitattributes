@@ -1,0 +1,37 @@
+# Line-ending policy.
+#
+# Why this file exists: without it, git has no normalization rule and
+# core.autocrlf is unset, so syncing this repo between a Windows workstation and
+# a Linux/Raspberry Pi checkout rewrote every file's line endings and made all
+# 131 tracked files show as modified — ~12,000 lines of pure whitespace churn
+# that buries real changes and destroys `git blame`.
+#
+# 'text=auto' stores every text file as LF *in the repository* while checking it
+# out with the platform's native endings, so Windows editors keep seeing CRLF
+# and git simply stops caring. Binary files are declared explicitly rather than
+# left to heuristics.
+
+* text=auto
+
+# Shell scripts run on the Pi and must be LF in the working tree too — CRLF
+# yields "bad interpreter: /usr/bin/env bash^M".
+*.sh    text eol=lf
+
+# Windows-only helpers keep CRLF in the working tree.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Never touch these.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+*.docx  binary
+*.xlsx  binary
+*.pptx  binary
+*.db    binary
+*.db-wal binary
+*.db-shm binary
+*.npy   binary

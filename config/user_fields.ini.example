@@ -1,0 +1,101 @@
+# spectrometerv2 — user field manifest (example)
+#
+# The core schema is locked: capture identity, backend provenance, calibration
+# linkage and the spectrum itself are fixed, and nothing here can shadow them.
+# This file is the sanctioned way to persist ANYTHING ELSE you want to collect.
+#
+# Enable it with, in config/config.ini:
+#
+#     [user_schema]
+#     manifest = config/user_fields.ini
+#
+# One declaration serves both stores: each field below becomes a typed column in
+# the SQLite `capture_ext` table (added automatically on next open) and an
+# InfluxDB field or tag.
+#
+# ---------------------------------------------------------------------------
+# Section name = field name.  Lowercase letters, digits, underscores.
+#
+#   type     int | float | bool | str                          (required)
+#   store    sqlite | influx | both                            (default: both)
+#   role     field | tag                                       (default: field)
+#   unit     free text, recorded alongside the column          (optional)
+#   from     dotted path into Spectrum.metadata                (optional)
+#   allowed  comma-separated permitted values (type=str only)  (required for tags)
+#   doc      what this is                                      (optional)
+#
+# TWO RULES THAT MATTER:
+#
+# 1. `role = tag` REQUIRES an `allowed` list. InfluxDB tags are indexed, so a
+#    tag whose value varies per capture creates one series per capture and
+#    wrecks the database. Enumerate the values, or use role = field.
+#
+# 2. `from` is what makes the zero-code case work. This file says where a value
+#    GOES, not where it comes from. If the value already flows through the
+#    pipeline, name its metadata path with `from` and write no code. If it is a
+#    genuinely new quantity, supply a hook:
+#
+#        [user_schema]
+#        hook = mypkg.bench:collect
+#
+#    ...a function taking the Spectrum and returning {name: value}. Its output
+#    is validated against these declarations — unknown keys and wrong types are
+#    reported, never silently dropped (see [user_schema] on_violation).
+# ---------------------------------------------------------------------------
+
+
+# --- Values already in metadata: declare and you are done (no code) ---------
+
+[sensor_gain]
+type  = float
+from  = frame.gain
+store = both
+doc   = Camera gain as reported by the adapter.
+
+[frame_index]
+type  = int
+from  = frame.frame_index
+store = sqlite
+doc   = Sequence number within a synthetic stream.
+
+
+# --- New quantities: declared here, produced by your hook -------------------
+
+[bench_humidity]
+type  = float
+unit  = %RH
+store = both
+doc   = Ambient relative humidity at the optical bench.
+
+[bench_temp_c]
+type  = float
+unit  = degC
+store = both
+doc   = Ambient air temperature beside the enclosure.
+
+[hv_rail_volts]
+type  = float
+unit  = V
+store = both
+doc   = Measured HV rail feeding the FS-2 calibration lamp.
+
+
+# --- Tags: enumerated, low cardinality, safe to index -----------------------
+
+[grating]
+type    = str
+role    = tag
+allowed = 1000lpmm, 1200lpmm, 1600lpmm
+doc     = Which transmission grating is installed.
+
+[slit_width]
+type    = str
+role    = tag
+allowed = 10um, 25um, 50um, 100um
+doc     = Installed slit. Drives the resolution the run can achieve.
+
+[operator]
+type    = str
+role    = tag
+allowed = frank, unattended
+doc     = Who ran the capture.

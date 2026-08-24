@@ -3,27 +3,39 @@
 Parking lot for work intentionally deferred until the core migration
 (Phases 0–8) is complete. Nothing here blocks the current plan.
 
-## Telemetry, persistence & visualization (post-migration)
+## Telemetry, persistence & visualization — **write side DONE** (2026-08-10)
 
-A dashboard/time-series story — **Grafana**, **InfluxDB**, and/or **SQL** — is
-wanted but is a feature workstream of its own (new requirements, an ingestion
-path, schema design, and a running service). Deferred until after Phase 8.
+The **write side is complete**: both stores, the locked core schema, and the
+user extension mechanism. See the CHANGELOG entry for 2026-08-10.
 
-**Design seam in place, and the InfluxDB write path is now built:** the Data
-Persistence layer is a pluggable `SpectrumSink` interface (`src/data/sinks.py`);
-the default is `CsvSpectrumSink`. An optional, off-by-default
-`InfluxDbSpectrumSink` (`src/data/influx.py`) now writes scalar features per
-acquisition to InfluxDB **v1/v2/v3** over stdlib HTTP (no client dependency),
-tagged `source` for measurement integrity; `MultiSink` tees it alongside CSV via
-`build_sink()`. Remaining future backends — `SqlSpectrumSink`, a Grafana-friendly
-exporter — are the same additive pattern, never touching the scientific core.
-`Spectrum.metadata` carries what a time-series row needs (calibration, generation
-params, timestamps, frame info). **Still out of scope / future:** the *read* side
-(Grafana dashboards, or querying a v3 server, which would need `influxdb3-python`)
-and formal `TEL-00x` requirements.
+- `data/schema_core.py` — the locked core (capture identity, backend
+  provenance, calibration fingerprint). Closed to extension.
+- `data/sqlite.py` — the queryable system of record: spectrum arrays (BLOB, one
+  row per capture), calibration records, provenance. Off by default.
+- `data/influx.py` — scalar telemetry for Grafana, v1/v2/v3, stdlib-only.
+- `data/user_schema.py` — declarative INI manifest; one declaration yields both
+  a typed SQLite column and an InfluxDB field/tag. Tags require an enumerated
+  `allowed` list, so tag cardinality cannot run away.
+- `data/factory.py` — assembles the sinks and assigns capture identity once, so
+  an InfluxDB point resolves to its SQLite row via `capture_uuid`.
 
-When picked up, add explicit requirements (e.g. TEL-00x) to the Requirements
-document and a Presentation/Export section to the Architecture document.
+The two stores are **complementary, not interchangeable**: SQLite holds what
+must be kept and re-examined, InfluxDB holds what must be watched over time.
+Forcing a 1280-sample spectrum into a time-series database is the thing this
+split exists to avoid.
+
+**Still out of scope / future:**
+
+- The **read side** — Grafana dashboards, or querying a v3 server (needs
+  `influxdb3-python`).
+- Formal `TEL-00x` requirement IDs in the Requirements document, and a
+  Persistence/Export section in the Architecture document. The design decisions
+  are recorded in the module docstrings and the CHANGELOG in the meantime.
+- An `export` command to expand BLOB spectra to long-form CSV/Parquet for
+  external tools.
+- Raw *frame* archival. Only the extracted 1-D spectrum is persisted today; the
+  ablation-testing plan ("all stages read from immutable raw data") will
+  eventually want the frames themselves indexed alongside.
 
 ## Other deferred items
 

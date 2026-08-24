@@ -76,7 +76,8 @@ class UsbCameraAdapter(CameraAdapter):
             raise CameraError("failed to read a frame from the USB camera")
         height, width = frame.shape[0], frame.shape[1]
         meta = FrameMetadata(width=width, height=height, pixel_format="BGR",
-                             extra={"source": "usb", "device_index": self.device_index})
+                             extra={"source": "usb", "backend": "usb",
+                                    "device_index": self.device_index})
         return frame, meta
 
     def status(self) -> dict[str, Any]:

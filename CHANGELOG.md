@@ -6,6 +6,96 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased] — branch `sprint-1-skeleton`
 
+### 2026-08-10 — Persistence: locked core schema, SQLite store, user field manifest
+
+Closes the telemetry/persistence workstream that BACKLOG.md deferred past Phase 8.
+
+**Added — `data/schema_core.py`: the locked core schema**
+- `CORE_SCHEMA_VERSION`, `CoreRecord`, and `RESERVED_NAMES`. Every backend now
+  writes exactly the same core, and nothing — no backend, no user extension —
+  may add to it, shadow it, or remove from it.
+- **Backend provenance is now recorded**, not merely implied. Adapters stamp an
+  explicit `backend`, and the core distinguishes `synthetic-camera` (a simulated
+  *frame* pushed through the real pixel-extraction path) from
+  `synthetic-generator` (a directly synthesized calibrated spectrum). A
+  calibration fitted on one is not valid on the other, so conflating them was a
+  latent silent-bad-data path.
+- **Calibration identity**: `calibration_fingerprint()` hashes coefficients +
+  order + sensor width. Any geometry change yields a new id, so a series that
+  spans a recalibration is visibly split instead of silently blended. Wired
+  through `LiveEngine.set_calibration(wavelengths, result)` — the GUI now passes
+  the fit itself, not just the axis.
+
+**Added — `data/sqlite.py`: the queryable system of record**
+- Off by default (`[sqlite] enabled`), teed alongside CSV exactly as InfluxDB is.
+  CSV remains the primary handle, so no caller or existing workflow changes.
+- Tables: `capture` (identity + provenance), `spectrum` (arrays), `calibration`
+  (deduplicated per distinct fit), `feature` (analysis scalars), `capture_ext`
+  (user columns), plus `schema_meta` / `user_column` for integrity.
+- Spectra are stored **one row per capture**, arrays packed as little-endian
+  `float64` BLOBs — explicit byte order so a `.db` file is portable between the
+  Pi and the workstation. One row per *sample* was rejected: it multiplies row
+  count by sample width, so a single session runs to millions of rows.
+- WAL journal mode by default, so a dashboard or notebook can read while
+  acquisition writes.
+- **Refuses to open** on a core-schema-version mismatch, or when a user field's
+  declared type has changed under existing rows. Additive changes migrate
+  automatically; reinterpretation is never silent.
+
+**Added — `data/user_schema.py`: the sanctioned extension point**
+- A declarative INI manifest (`config/user_fields.ini.example`) declares extra
+  fields **once** and applies them to **both** stores: a typed SQLite column in
+  `capture_ext` (added by generated migration on next open) and an InfluxDB
+  field or tag.
+- Kept deliberately *outside* `config.ini`, because the config loader is
+  closed-world — it rejects unknown sections and keys. That is what makes the
+  core lockable and the extension point safe at the same time.
+- `from = frame.gain` pulls a value already in metadata, so the common case
+  needs **no code**. An optional `[user_schema] hook = module:function` supplies
+  genuinely new quantities; its output is validated against the declarations —
+  unknown keys and wrong types are reported, never silently dropped.
+- **`role = tag` requires an enumerated `allowed` list.** InfluxDB tags are
+  indexed, so an unbounded tag creates one series per capture. The manifest makes
+  that unrepresentable rather than merely discouraged.
+- `[user_schema] on_violation` selects `error` / `warn` / `drop`.
+
+**Changed**
+- `build_sink()` moved to the new `data/factory.py`; a factory that chooses
+  between backends does not belong inside one of them. `data.influx.build_sink`
+  is kept as a deprecated alias.
+- The factory wraps the fan-out in `IdentityStampingSink`, which assigns the
+  capture UUID and timestamp **once** before fan-out. This is what lets an
+  InfluxDB point resolve to its SQLite row: `capture_uuid` is written as an
+  InfluxDB *field* (never a tag — it is per-capture by definition).
+- `spectrum.metadata["influx_fields"]` renamed to `["features"]`. The domain
+  object no longer names a storage backend.
+- InfluxDB extra tags/fields now come from the validated manifest instead of
+  raw metadata passthrough, closing an unbounded-cardinality hole. Core tag set
+  extended to `source`, `backend`, `pixel_format`, `calibration_id`; core fields
+  gain `simulated`. Tags and fields are now emitted **sorted** (canonical line
+  protocol).
+- GUI snapshots (key `s`) route through the assembled sink, so they land in
+  every enabled store. Previously `snapshot_spectrum()` hardcoded CSV — the GUI,
+  the primary interface, was invisible to the telemetry it is meant to feed.
+
+**Fixed**
+- `configparser` interpolation is disabled for the manifest: units legitimately
+  contain `%` (e.g. `unit = %RH`), which the default `BasicInterpolation`
+  rejected as a broken substitution.
+
+**Config**
+- New `[sqlite]` (enabled, path, store_metadata_json, timeout, journal_mode) and
+  `[user_schema]` (manifest, hook, on_violation) sections; `config.ini` and
+  `config.ini.example` regenerated.
+
+**Tests** — 54 new (manifest validation and cardinality guard, BLOB round-trip
+and endianness, migration generation, retype/version refusal, calibration
+fingerprint stability, cross-store identity, GUI snapshot routing).
+Suite: **275 passed, 2 skipped**.
+
+> Still out of scope: the *read* side (Grafana dashboards, querying a v3 server)
+> and formal `TEL-00x` requirement IDs.
+
 ### 2026-07-27 — Telemetry: optional InfluxDB sink (v1/v2/v3, zero-dep)
 **Added**
 - `data/influx.py`: an optional `InfluxDbSpectrumSink` that writes each

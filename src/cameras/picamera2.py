@@ -69,7 +69,8 @@ class Picamera2Adapter(CameraAdapter):
         frame = self._cam.capture_array()
         height, width = frame.shape[0], frame.shape[1]
         meta = FrameMetadata(width=width, height=height, pixel_format="RGB888",
-                             extra={"source": "picamera2", "gain": self.gain})
+                             extra={"source": "picamera2", "backend": "picamera2",
+                                    "gain": self.gain})
         return frame, meta
 
     def status(self) -> dict[str, Any]:

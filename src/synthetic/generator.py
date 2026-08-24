@@ -108,6 +108,7 @@ def generate(spec: SyntheticSpectrumSpec) -> Spectrum:
 
     metadata = {
         "source": "synthetic",
+        "backend": "synthetic-generator",
         "generator": GENERATOR_ID,
         "profile_type": spec.profile_type,
         "center_wavelengths": list(map(float, spec.center_wavelengths)),

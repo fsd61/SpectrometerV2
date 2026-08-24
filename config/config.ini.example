@@ -166,6 +166,42 @@ timeout = 5.0
 dry_run = false
 
 
+[sqlite]
+# Also persist each spectrum to a SQLite database.
+#   (type=bool; default=false)
+enabled = false
+
+# SQLite database file. Created (with its parent directory) on first use.
+#   (type=path; default=data/spectrometer.db)
+path = data/spectrometer.db
+
+# Archive the full metadata dict as JSON on each capture row. Costs space; keeps provenance that the typed columns do not cover.
+#   (type=bool; default=true)
+store_metadata_json = true
+
+# Lock-wait timeout, seconds.
+#   (type=float; default=5.0; min=0.1; max=120.0)
+timeout = 5.0
+
+# SQLite journal mode. 'wal' lets a dashboard or notebook read while acquisition writes.
+#   (type=str; default=wal; choices=wal, delete, truncate, persist, memory, off)
+journal_mode = wal
+
+
+[user_schema]
+# Path to the user field manifest (INI). Blank = core schema only. Declared fields become typed SQLite columns and InfluxDB fields/tags. Kept out of this file because the config loader is closed-world, which is what keeps the core schema locked.
+#   (type=str; default=)
+manifest = 
+
+# Optional 'module:function' called per capture, returning a dict of user field values. Only needed for quantities the pipeline does not already produce; fields with a 'from' path need no code.
+#   (type=str; default=)
+hook = 
+
+# What to do when a user value fails validation (wrong type, outside 'allowed', or undeclared): 'error' aborts the write, 'warn' logs and drops the value, 'drop' discards it silently.
+#   (type=str; default=error; choices=error, warn, drop)
+on_violation = error
+
+
 [processing]
 # Sensor row used for the 1-D spectral slice; -1 = auto/center.
 #   (type=int; default=-1; min=-1)

@@ -31,7 +31,8 @@ src/                  Application sources (flat layout — no wrapper package)
   calibration/  wavelength calibration
   analysis/     peak detection, fitting, FWHM, SNR
   synthetic/    reproducible synthetic spectra         (SYN-*)
-  data/         persistence + metadata                 (DATA-*)
+  data/         persistence: locked core schema, CSV / SQLite / InfluxDB
+                sinks, user field manifest             (DATA-*)
   ui/           GUI + plotting
   errors.py         application exception hierarchy
   logging_setup.py  structured rotating logging        (LOG-*)
@@ -53,9 +54,17 @@ application runs headless via a CLI (run / generate-synthetic / analyze /
 test-camera / verify-hardware / check-calibration), saving results through a
 pluggable persistence sink (Phase 6).
 
+Persistence writes CSV by default and can additionally tee to **SQLite** (the
+queryable system of record: spectrum arrays, calibration records, full
+provenance) and **InfluxDB** (scalar telemetry for Grafana). Both are off by
+default. The core schema is locked — capture identity, backend provenance and
+calibration fingerprint are fixed and cannot be overridden — while anything else
+you want to collect is declared in a small INI manifest that applies to both
+stores at once. See `config/user_fields.ini.example`.
+
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
 behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
-131 tests, installable via `pip install -e .`.
+275 tests, installable via `pip install -e .`.
 
 ## Usage
 

@@ -75,7 +75,12 @@ class SyntheticCameraAdapter(CameraAdapter):
         frame = np.repeat(gray[:, :, None], 3, axis=2) if self.pixel_format == "BGR" else gray
         meta = FrameMetadata(
             width=self.width, height=self.height, pixel_format=self.pixel_format,
-            extra={"source": "synthetic", "frame_index": self._frames, "lines": list(self.lines)},
+            # 'synthetic-camera' is a simulated *frame* pushed through the real
+            # pixel-extraction path — distinct from 'synthetic-generator', which
+            # synthesizes a calibrated spectrum directly. A calibration fitted
+            # on one is not valid for the other.
+            extra={"source": "synthetic", "backend": "synthetic-camera",
+                   "frame_index": self._frames, "lines": list(self.lines)},
         )
         self._frames += 1
         return frame, meta

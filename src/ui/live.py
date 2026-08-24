@@ -282,19 +282,45 @@ class LiveEngine:
     source: FrameSource
     params: LiveParams = field(default_factory=LiveParams)
     calibration: Optional[list] = None   # per-pixel wavelengths (nm), or None
+    calibration_meta: dict = field(default_factory=dict)
     _hold: Optional[np.ndarray] = field(default=None, repr=False)
 
-    def set_calibration(self, wavelengths) -> None:
+    def set_calibration(self, wavelengths, result=None) -> None:
         """Apply a pixel->wavelength calibration to subsequent uncalibrated frames.
+
+        Passing the :class:`~calibration.wavelength.CalibrationResult` as
+        ``result`` records the fit itself — coefficients, order, and a
+        fingerprint — on every frame the calibration is applied to. Without it
+        the persisted record can say a spectrum is calibrated but not *which*
+        calibration produced it, which is precisely the provenance gap that
+        lets two different wavelength axes be plotted as one series.
 
         Single reference assignment, so it is safe to call from the UI thread
         while the capture thread reads it each frame (same pattern as
         ``SyntheticFrameSource.set_spec``).
         """
+        meta: dict = {}
+        if result is not None:
+            from data.schema_core import calibration_fingerprint
+
+            coefficients = [float(c) for c in result.coefficients]
+            width = len(result.wavelengths)
+            meta = {
+                "calibration_coefficients": coefficients,
+                "calibration_order": int(result.order),
+                "calibration_r_squared": result.r_squared,
+                "calibration_id": calibration_fingerprint(
+                    coefficients, int(result.order), width
+                ),
+            }
+        # Assign the payload before the flag the capture thread tests on, so a
+        # frame can never see a calibration without its identity.
+        self.calibration_meta = meta
         self.calibration = list(wavelengths) if wavelengths is not None else None
 
     def clear_calibration(self) -> None:
         self.calibration = None
+        self.calibration_meta = {}
 
     def step(self) -> Tuple[Spectrum, SpectralAnalysis]:
         spectrum = self.source.next_spectrum()
@@ -325,7 +351,11 @@ class LiveEngine:
             spectrum = Spectrum(
                 wavelengths=[float(w) for w in self.calibration[:n]],
                 intensities=spectrum.intensities,
-                metadata={**spectrum.metadata, "calibration": "applied"},
+                metadata={
+                    **spectrum.metadata,
+                    "calibration": "applied",
+                    **self.calibration_meta,
+                },
             )
 
         wavelengths = list(spectrum.wavelengths) if len(spectrum.wavelengths) else None
@@ -436,17 +466,23 @@ def snapshot_name(now: Optional[datetime] = None) -> str:
     )
 
 
-def snapshot_spectrum(spectrum, directory, name: Optional[str] = None):
-    """Export the current spectrum via :class:`data.sinks.CsvSpectrumSink`.
+def snapshot_spectrum(spectrum, directory, name: Optional[str] = None, sink=None):
+    """Export the current spectrum through a :class:`data.sinks.SpectrumSink`.
 
-    Returns the written CSV path. The snapshot key (``s``) calls this; keeping it
-    here (Qt-free) means the save path is unit-tested without a display, and it
-    routes through the same sink the CLI uses, so future backends (InfluxDB, SQL)
-    apply to GUI snapshots too (BACKLOG.md).
+    Returns the primary (CSV) path. The snapshot key (``s``) calls this; keeping
+    it here (Qt-free) means the save path is unit-tested without a display.
+
+    ``sink`` is the sink assembled by :func:`data.factory.build_sink`, so a GUI
+    snapshot lands in *every* enabled store — SQLite and InfluxDB included —
+    exactly as a CLI run does. Without it the GUI, which is the primary
+    interface, would be invisible to the telemetry it is meant to feed. It
+    falls back to CSV-only when no sink is supplied (tests, headless callers).
     """
-    from data.sinks import CsvSpectrumSink
+    if sink is None:
+        from data.sinks import CsvSpectrumSink
 
-    return CsvSpectrumSink(directory).write(spectrum, name=name or snapshot_name())
+        sink = CsvSpectrumSink(directory)
+    return sink.write(spectrum, name=name or snapshot_name())
 
 
 # --------------------------------------------------------------------------- #

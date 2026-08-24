@@ -4,11 +4,11 @@ No network: the line-protocol builder is pure, and the sink takes an injectable
 ``poster`` so we assert the exact URL / headers / body without a live server."""
 
 from config.loader import load_config
+from data.factory import IdentityStampingSink, build_sink
 from data.influx import (
     InfluxConfig,
     InfluxDbSpectrumSink,
     build_line_protocol,
-    build_sink,
     summarize_features,
 )
 from data.sinks import CsvSpectrumSink, MultiSink
@@ -23,14 +23,49 @@ def _spec(**meta):
 # --------------------------------------------------------------------------- #
 # Line protocol
 # --------------------------------------------------------------------------- #
-def test_line_protocol_base_fields_and_source_tag():
+def test_line_protocol_carries_locked_core_tags_and_fields():
+    """Tags and fields are both emitted sorted (canonical line protocol)."""
     line = build_line_protocol(_spec(source="synthetic"), "spectrum",
                                timestamp_ns=1_700_000_000_000_000_000)
     assert line == (
-        "spectrum,source=synthetic "
-        "n_samples=3i,total_flux=8.0,peak_intensity=5.0,calibrated=true "
+        "spectrum,backend=synthetic-generator,calibration_id=none,"
+        "pixel_format=none,source=synthetic "
+        "calibrated=true,n_samples=3i,peak_intensity=5.0,simulated=true,"
+        "total_flux=8.0 "
         "1700000000000000000"
     )
+
+
+def test_backend_distinguishes_synthetic_camera_from_generator():
+    """A simulated frame and a synthesized spectrum are different backends.
+
+    A calibration fitted on one is not valid on the other, so they must not
+    share a series.
+    """
+    frame_based = Spectrum(
+        wavelengths=[], intensities=[1.0, 2.0],
+        metadata={"source": "synthetic",
+                  "frame": {"backend": "synthetic-camera", "pixel_format": "GRAY"}},
+    )
+    assert "backend=synthetic-camera" in build_line_protocol(frame_based, "spectrum")
+    assert "backend=synthetic-generator" in build_line_protocol(
+        _spec(source="synthetic"), "spectrum"
+    )
+
+
+def test_simulated_flag_tracks_backend():
+    real = Spectrum(wavelengths=[], intensities=[1.0],
+                    metadata={"source": "usb", "frame": {"backend": "usb"}})
+    assert "simulated=false" in build_line_protocol(real, "spectrum")
+    assert "simulated=true" in build_line_protocol(_spec(source="synthetic"), "spectrum")
+
+
+def test_capture_uuid_is_a_field_not_a_tag():
+    """The cross-store join key must never become an indexed tag."""
+    line = build_line_protocol(_spec(source="usb", capture_uuid="abc-123"), "spectrum")
+    tag_part, field_part = line.split(" ")[0], line.split(" ")[1]
+    assert "capture_uuid" not in tag_part
+    assert 'capture_uuid="abc-123"' in field_part
 
 
 def test_source_defaults_to_unknown():
@@ -118,7 +153,8 @@ def test_sink_posts_url_headers_and_body():
     out = InfluxDbSpectrumSink(cfg, poster=poster).write(_spec(source="synthetic"))
     assert "/api/v2/write?" in captured["url"]
     assert captured["headers"]["Authorization"] == "Token TOK"
-    assert captured["body"].startswith("spectrum,source=synthetic ")
+    assert captured["body"].startswith("spectrum,backend=synthetic-generator,")
+    assert ",source=synthetic " in captured["body"]
     assert out == captured["body"]
 
 
@@ -127,7 +163,8 @@ def test_dry_run_does_not_post():
     cfg = InfluxConfig(version=2, dry_run=True)
     line = InfluxDbSpectrumSink(cfg, poster=lambda *a: posted.append(a)).write(_spec(source="camera"))
     assert posted == []                          # never called
-    assert line.startswith("spectrum,source=camera ")
+    assert line.startswith("spectrum,")
+    assert ",source=camera " in line
 
 
 def test_write_failure_is_swallowed():
@@ -143,16 +180,36 @@ def test_write_failure_is_swallowed():
 # build_sink factory / tee
 # --------------------------------------------------------------------------- #
 def test_build_sink_csv_only_when_disabled(tmp_path):
-    cfg = load_config(overrides=["influx.enabled=false"])
+    cfg = load_config(overrides=["influx.enabled=false", "sqlite.enabled=false"])
     sink = build_sink(cfg, tmp_path)
-    assert isinstance(sink, CsvSpectrumSink)
+    # Always wrapped, so capture identity is assigned exactly once regardless
+    # of how many backends are active.
+    assert isinstance(sink, IdentityStampingSink)
+    assert isinstance(sink.inner, CsvSpectrumSink)
 
 
 def test_build_sink_tees_when_enabled(tmp_path):
     cfg = load_config(overrides=["influx.enabled=true", "influx.dry_run=true"])
     sink = build_sink(cfg, tmp_path)
-    assert isinstance(sink, MultiSink)
+    assert isinstance(sink.inner, MultiSink)
     # Primary (CSV) handle is returned, and the CSV file is actually written.
     path = sink.write(_spec(source="synthetic"), name="acq")
     assert str(path).endswith("acq.csv")
     assert (tmp_path / "acq.csv").exists()
+
+
+def test_identity_is_assigned_once_and_shared(tmp_path):
+    """Both stores must record the same capture id for the same capture."""
+    cfg = load_config(overrides=["influx.enabled=true", "influx.dry_run=true"])
+    spectrum = _spec(source="synthetic")
+    build_sink(cfg, tmp_path).write(spectrum, name="acq")
+    assert "capture_uuid" in spectrum.metadata
+    assert "timestamp_ns" in spectrum.metadata
+
+
+def test_existing_identity_is_not_overwritten(tmp_path):
+    cfg = load_config(overrides=["influx.enabled=false", "sqlite.enabled=false"])
+    spectrum = _spec(source="usb", capture_uuid="preset-id", timestamp_ns=42)
+    build_sink(cfg, tmp_path).write(spectrum, name="acq")
+    assert spectrum.metadata["capture_uuid"] == "preset-id"
+    assert spectrum.metadata["timestamp_ns"] == 42

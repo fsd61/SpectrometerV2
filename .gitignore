@@ -14,6 +14,25 @@ env/
 # Runtime logs (LOG-002 writes here; never commit logs)
 logs/
 
+# SQLite store + its WAL sidecars (measurement data; never commit).
+# Leading slash anchors this to the project root — an unanchored 'data/' would
+# also match src/data/ and silently untrack the persistence package.
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# The user's own field manifest is local setup; the .example is tracked
+config/user_fields.ini
+
+# Local config created by 'spectrometerv2 init-config'; only the .example and
+# the config/profiles/*.ini alternates are tracked.
+/config/config.ini
+
+# Generated run output (CLI --output default and the GUI snapshot dir)
+/out/
+/snapshots/
+
 # Test / tooling caches
 .pytest_cache/
 .coverage

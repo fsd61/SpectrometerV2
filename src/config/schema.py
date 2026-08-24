@@ -162,6 +162,54 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "without a live server.",
         ),
     },
+    # Optional SQLite store (off by default). Unlike InfluxDB, this is the
+    # queryable system of record: it holds the spectrum arrays, calibration
+    # records and full provenance. The two stores are complementary, not
+    # interchangeable — see data/sqlite.py.
+    "sqlite": {
+        "enabled": Field("bool", False, "Also persist each spectrum to a SQLite database."),
+        "path": Field(
+            "path", "data/spectrometer.db",
+            "SQLite database file. Created (with its parent directory) on first use.",
+        ),
+        "store_metadata_json": Field(
+            "bool", True,
+            "Archive the full metadata dict as JSON on each capture row. Costs "
+            "space; keeps provenance that the typed columns do not cover.",
+        ),
+        "timeout": Field("float", 5.0, "Lock-wait timeout, seconds.", min=0.1, max=120.0),
+        "journal_mode": Field(
+            "str", "wal",
+            "SQLite journal mode. 'wal' lets a dashboard or notebook read while "
+            "acquisition writes.",
+            choices=["wal", "delete", "truncate", "persist", "memory", "off"],
+        ),
+    },
+    # User-declared extra fields. The core schema is locked; this is the only
+    # sanctioned way to persist additional data, and one declaration applies to
+    # both SQLite and InfluxDB. See data/user_schema.py for the file format.
+    "user_schema": {
+        "manifest": Field(
+            "str", "",
+            "Path to the user field manifest (INI). Blank = core schema only. "
+            "Declared fields become typed SQLite columns and InfluxDB "
+            "fields/tags. Kept out of this file because the config loader is "
+            "closed-world, which is what keeps the core schema locked.",
+        ),
+        "hook": Field(
+            "str", "",
+            "Optional 'module:function' called per capture, returning a dict of "
+            "user field values. Only needed for quantities the pipeline does not "
+            "already produce; fields with a 'from' path need no code.",
+        ),
+        "on_violation": Field(
+            "str", "error",
+            "What to do when a user value fails validation (wrong type, outside "
+            "'allowed', or undeclared): 'error' aborts the write, 'warn' logs and "
+            "drops the value, 'drop' discards it silently.",
+            choices=["error", "warn", "drop"],
+        ),
+    },
     "processing": {
         "slice_row": Field(
             "int", -1,

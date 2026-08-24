@@ -12,11 +12,21 @@ endpoint and auth differ, so v1/v2/v3 are one small switch:
 * v2: ``POST /api/v2/write?org=<org>&bucket=<bucket>`` + ``Authorization: Token``
 * v3: uses the v2 write endpoint (``bucket`` = the database name)
 
-**Measurement integrity:** every point is tagged ``source`` (synthetic / camera /
-unknown, from ``Spectrum.metadata``), so simulated data can never be mistaken for
-real measurements downstream — the same discipline as the GUI's ``[SIMULATED]``
-marker. Telemetry failures are swallowed with a warning: a dashboard write must
-never break an acquisition.
+**Measurement integrity:** every point carries the locked core tag set from
+:mod:`data.schema_core` — ``source``, ``backend``, ``pixel_format`` and
+``calibration_id`` — so simulated data can never be mistaken for real
+measurements, and a series that spans a recalibration or a backend change is
+visibly split rather than silently blended. Tags are emitted in sorted order,
+the canonical line-protocol form.
+
+**Cardinality is gated, not trusted.** Extra tags no longer come from free-form
+metadata. They must be declared in the user manifest (:mod:`data.user_schema`)
+with an enumerated ``allowed`` list, because an undeclared tag whose value
+varies per capture creates one series per capture and destroys the database.
+Extra *fields* are unindexed and so only need to be declared, not enumerated.
+
+Telemetry failures are swallowed with a warning: a dashboard write must never
+break an acquisition.
 """
 
 from __future__ import annotations
@@ -29,7 +39,10 @@ from typing import Any, Callable, Optional
 from urllib.parse import urlencode
 
 from processing.spectrum import Spectrum
+
+from .schema_core import build_core_record
 from .sinks import SpectrumSink
+from .user_schema import UserSchema
 
 logger = logging.getLogger(__name__)
 
@@ -72,28 +85,46 @@ def build_line_protocol(
 ) -> str:
     """Build one InfluxDB line-protocol point from a spectrum.
 
-    Base fields (derivable from the spectrum alone): ``n_samples``,
-    ``total_flux``, ``peak_intensity``, ``calibrated``. Callers pass richer
-    analysis-derived scalars via ``extra_fields`` (e.g. :func:`summarize_features`)
-    and extra string labels via ``extra_tags``. ``source`` is always tagged.
+    The locked core (:mod:`data.schema_core`) supplies the tag set —
+    ``source``, ``backend``, ``pixel_format``, ``calibration_id`` — plus the
+    provenance fields. Intensity aggregates (``total_flux``, ``peak_intensity``)
+    are derived here. Callers pass analysis-derived scalars via ``extra_fields``
+    (e.g. :func:`summarize_features`) and manifest-declared labels via
+    ``extra_tags``; neither may shadow a core name.
     """
     meta = spectrum.metadata or {}
-    tags = {"source": str(meta.get("source", "unknown"))}
+    ts = meta.get("timestamp_ns")
+    record = build_core_record(
+        spectrum,
+        uuid=str(meta.get("capture_uuid", "")),
+        captured_at_ns=int(ts) if ts is not None else (timestamp_ns or 0),
+    )
+
+    tags = record.influx_tags()
     if extra_tags:
-        tags.update({k: str(v) for k, v in extra_tags.items()})
+        # Core names win: a user field can never overwrite provenance.
+        tags.update({k: str(v) for k, v in extra_tags.items() if k not in tags})
 
     intensities = [float(v) for v in spectrum.intensities]
     fields: dict[str, Any] = {
-        "n_samples": len(intensities),
         "total_flux": float(sum(intensities)) if intensities else 0.0,
         "peak_intensity": float(max(intensities)) if intensities else 0.0,
-        "calibrated": len(spectrum.wavelengths) > 0,
     }
+    fields.update(record.influx_fields())
+    # The cross-store join key: lets a Grafana point resolve to its SQLite row.
+    if record.uuid:
+        fields["capture_uuid"] = record.uuid
     if extra_fields:
-        fields.update(extra_fields)
+        fields.update({k: v for k, v in extra_fields.items() if k not in fields})
 
-    tag_str = "".join(f",{_esc_tag(k)}={_esc_tag(v)}" for k, v in tags.items())
-    field_str = ",".join(f"{_esc_tag(k)}={_fmt_field(v)}" for k, v in fields.items())
+    # Sorted tags are the canonical line-protocol form (better server-side
+    # indexing, and a stable string for tests).
+    tag_str = "".join(
+        f",{_esc_tag(k)}={_esc_tag(v)}" for k, v in sorted(tags.items())
+    )
+    field_str = ",".join(
+        f"{_esc_tag(k)}={_fmt_field(v)}" for k, v in sorted(fields.items())
+    )
     line = f"{_esc_meas(measurement)}{tag_str} {field_str}"
     if timestamp_ns is not None:
         line += f" {int(timestamp_ns) // _PRECISION_DIVISOR.get(precision, 1)}"
@@ -188,22 +219,51 @@ class InfluxDbSpectrumSink(SpectrumSink):
     ``poster`` is injectable so tests assert the URL/headers/body without a live
     server. Write failures are logged and swallowed — telemetry must never break
     an acquisition.
+
+    Extra tags and fields come from the validated user manifest, never from raw
+    metadata: that is what keeps tag cardinality bounded.
     """
 
-    def __init__(self, config: InfluxConfig, poster: Optional[Callable] = None):
+    def __init__(
+        self,
+        config: InfluxConfig,
+        poster: Optional[Callable] = None,
+        user_schema: Optional[UserSchema] = None,
+        hook: Optional[Callable] = None,
+        on_violation: str = "error",
+    ):
         self.config = config
         self._post = poster or _http_post
+        self.user_schema = user_schema or UserSchema()
+        self.hook = hook
+        self.on_violation = on_violation
+
+    def _user_tags_and_fields(self, spectrum: Spectrum) -> tuple:
+        """Split validated user values into Influx tags and fields by role."""
+        if not len(self.user_schema):
+            return {}, {}
+        values = self.user_schema.resolve(
+            spectrum, hook=self.hook, on_violation=self.on_violation
+        )
+        tag_names = {f.name for f in self.user_schema.influx_tags()}
+        field_names = {f.name for f in self.user_schema.influx_fields()}
+        tags = {k: v for k, v in values.items() if k in tag_names}
+        fields = {k: v for k, v in values.items() if k in field_names}
+        return tags, fields
 
     def write(self, spectrum: Spectrum, name: Optional[str] = None):
         cfg = self.config
         meta = spectrum.metadata or {}
         ts = meta.get("timestamp_ns")
         timestamp_ns = int(ts) if ts is not None else time.time_ns()
+        user_tags, user_fields = self._user_tags_and_fields(spectrum)
+        extra_fields = dict(meta.get("features") or {})
+        extra_fields.update(user_fields)
         line = build_line_protocol(
             spectrum, cfg.measurement,
             timestamp_ns=timestamp_ns,
-            extra_tags=meta.get("influx_tags"),
-            extra_fields=meta.get("influx_fields"),
+            extra_tags=user_tags,
+            extra_fields=extra_fields,
             precision=cfg.precision,
         )
         if cfg.dry_run:
@@ -220,12 +280,11 @@ class InfluxDbSpectrumSink(SpectrumSink):
         return line
 
 
+# ``build_sink`` moved to :mod:`data.factory` — a factory that chooses between
+# backends does not belong inside one of those backends. Re-exported here so
+# existing imports keep working.
 def build_sink(config, output):
-    """The output sink for a run: CSV, plus InfluxDB teed in when enabled."""
-    from .sinks import CsvSpectrumSink, MultiSink
+    """Deprecated alias for :func:`data.factory.build_sink`."""
+    from .factory import build_sink as _build_sink
 
-    sinks = [CsvSpectrumSink(output)]
-    cfg = InfluxConfig.from_section(config.section("influx"))
-    if cfg.enabled:
-        sinks.append(InfluxDbSpectrumSink(cfg))
-    return sinks[0] if len(sinks) == 1 else MultiSink(sinks)
+    return _build_sink(config, output)

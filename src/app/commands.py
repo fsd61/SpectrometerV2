@@ -19,7 +19,8 @@ from calibration.wavelength import calibrate
 from cameras.factory import create_camera_from_config
 from config import render_ini, config_path, find_project_root
 from data.sinks import CsvSpectrumSink, read_csv_spectrum
-from data.influx import build_sink, summarize_features
+from data.factory import build_sink
+from data.influx import summarize_features
 from .hardware import select_camera
 from errors import PySpectrometerError
 from platforms import detect_platform
@@ -126,7 +127,8 @@ def generate_synthetic(config, logger: logging.Logger, output: str, plot: bool =
     )
     spectrum = generate(spec)
     result = analyze(spectrum.intensities, wavelengths=spectrum.wavelengths, measure=True)
-    spectrum.metadata["influx_fields"] = summarize_features(result)
+    # Backend-neutral: each sink decides what to do with the scalar features.
+    spectrum.metadata["features"] = summarize_features(result)
     path = build_sink(config, output).write(spectrum, name="synthetic")
     print(f"Generated {len(spectrum)} samples -> {path}")
     logger.info("Generated synthetic spectrum -> %s", path)
@@ -142,7 +144,8 @@ def run(config, logger: logging.Logger, output: str, plot: bool = False) -> int:
     finally:
         camera.shutdown()
     result = analyze(spectrum.intensities, wavelengths=spectrum.wavelengths or None, measure=True)
-    spectrum.metadata["influx_fields"] = summarize_features(result)
+    # Backend-neutral: each sink decides what to do with the scalar features.
+    spectrum.metadata["features"] = summarize_features(result)
     path = build_sink(config, output).write(spectrum, name="acquisition")
     tag = " [SIMULATED]" if simulated else ""
     print(f"Acquired {len(spectrum)} samples{tag} -> {path}")
