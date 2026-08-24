@@ -89,3 +89,19 @@ def test_init_config_writes_validates_and_force(tmp_path):
     assert main(["--force", "-o", str(target), "init-config"]) == 0  # --force overwrites
     assert main(["--config", str(target), "--set", "logging.console=false",
                  "--set", f"logging.directory={tmp_path}/logs", "validate-config"]) == 0
+
+
+def test_options_after_the_command_work_end_to_end(tmp_path):
+    """The ergonomic fix, exercised through main() rather than the parser."""
+    rc = main(["generate-synthetic", "--set", "logging.console=false",
+               "--set", f"logging.directory={tmp_path}/logs", "-o", str(tmp_path)])
+    assert rc == 0
+    assert (tmp_path / "synthetic.csv").exists()
+
+
+def test_options_split_across_the_command_merge(tmp_path):
+    rc = main(["--set", "logging.console=false", "run",
+               "--set", f"logging.directory={tmp_path}/logs",
+               "--set", "camera.backend=synthetic", "-o", str(tmp_path)])
+    assert rc == 0
+    assert (tmp_path / "acquisition.csv").exists()

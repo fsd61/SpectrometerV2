@@ -11,13 +11,12 @@ from config.schema import SCHEMA
 from errors import ConfigError, PySpectrometerError
 from logging_setup import setup_logging
 from . import commands
-from .cli import build_parser
+from .cli import parse_args
 
 _VERBOSITY = ["INFO", "DEBUG"]
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parse_args(argv)
 
     if args.command == "describe-config":
         _describe_config()
