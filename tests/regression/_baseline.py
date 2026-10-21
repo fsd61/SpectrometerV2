@@ -105,6 +105,6 @@ def write_caldata(directory: Path, pixels, wavelengths):
     path.write_text(
         ",".join(str(p) for p in pixels) + "\r\n"
         + ",".join(str(w) for w in wavelengths) + "\r\n",
-        encoding="utf-8",
+        encoding="utf-8", newline="",
     )
     return path

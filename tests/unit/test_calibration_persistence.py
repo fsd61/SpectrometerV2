@@ -21,13 +21,13 @@ def test_missing_file_raises(tmp_path):
 
 def test_mismatched_counts_raise(tmp_path):
     p = tmp_path / "bad.txt"
-    p.write_text("1,2,3\r\n400,500\r\n")
+    p.write_text("1,2,3\r\n400,500\r\n", encoding="utf-8", newline="")
     with pytest.raises(CalibrationError):
         load_calibration_points(p)
 
 
 def test_too_few_lines_raise(tmp_path):
     p = tmp_path / "short.txt"
-    p.write_text("1,2,3\r\n")
+    p.write_text("1,2,3\r\n", encoding="utf-8", newline="")
     with pytest.raises(CalibrationError):
         load_calibration_points(p)

@@ -7,7 +7,7 @@ from config import (
 
 def test_render_ini_round_trips(tmp_path):
     p = tmp_path / "c.ini"
-    p.write_text(render_ini())
+    p.write_text(render_ini(), encoding="utf-8")
     cfg = load_config(str(p))
     assert cfg.get("camera", "backend") == "auto"
     assert cfg.get("camera", "on_missing") == "prompt"
@@ -33,5 +33,5 @@ def test_discover_finds_project_config(tmp_path, monkeypatch):
     (root / "pyproject.toml").write_text("")
     monkeypatch.chdir(root)
     assert discover_config_path() is None
-    (root / "config" / "config.ini").write_text(render_ini())
+    (root / "config" / "config.ini").write_text(render_ini(), encoding="utf-8")
     assert discover_config_path() == root / "config" / "config.ini"

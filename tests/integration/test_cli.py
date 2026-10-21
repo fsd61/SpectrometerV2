@@ -57,7 +57,8 @@ def test_verify_hardware_synthetic_ok(tmp_path):
 
 def test_check_calibration_ok(tmp_path):
     cal = tmp_path / "caldata.txt"
-    cal.write_text("35,250,470,700\r\n404.66,435.83,546.07,611.60\r\n")
+    cal.write_text("35,250,470,700\r\n404.66,435.83,546.07,611.60\r\n",
+                   encoding="utf-8", newline="")
     rc = main(_base(tmp_path) + ["--set", f"calibration.file={cal}",
                                  "--set", "camera.width=800", "check-calibration"])
     assert rc == 0
