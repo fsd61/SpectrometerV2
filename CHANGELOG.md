@@ -4,6 +4,25 @@ All notable changes to **SpectrometerV2** are recorded here, one entry per
 development step. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
+## [2.0.1] — 2026-10-21
+
+Repository housekeeping; no change to application behavior.
+
+- Added `FEATURES.md` (what is new since PySpectrometer2) to the repository.
+- Removed the duplicate root-level `count_py_lines.py` (kept in `scripts/`).
+- Stopped tracking the personal `git-push-db` scratch script; ignored root-level
+  `synthetic.*` run output.
+
+## [2.0.0] — 2026-10-21
+
+First public release, published to GitHub via `scripts/release.ps1`.
+
+- Test fixtures now write caldata and INI files portably, so the full suite
+  (328 tests) passes on Windows.
+- Added `scripts/release.ps1`: publishes `main` and a `v*` tag to GitHub only
+  when `main` is clean, in sync with the home repository, version-consistent,
+  and passing all tests.
+
 ## [Unreleased] — branch `sprint-1-skeleton`
 
 ### 2026-08-10 — Persistence: locked core schema, SQLite store, user field manifest

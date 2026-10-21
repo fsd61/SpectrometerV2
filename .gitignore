@@ -53,6 +53,11 @@ Thumbs.db
 /acquisition.meta.json
 /acquisition.png
 /waterfall.png
+/synthetic.csv
+/synthetic.meta.json
+/synthetic.png
+# Personal scratch scripts kept out of the repository.
+/git-push-db
 
 # Profiling / import-timing artifacts
 /importtime.log
