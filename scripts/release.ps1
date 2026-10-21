@@ -45,6 +45,8 @@ if (git status --porcelain --untracked-files=no) { Fail "uncommitted changes to 
 
 $pyVersion = (Select-String -Path pyproject.toml -Pattern '^\s*version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
 if ($pyVersion -ne $Version) { Fail "pyproject.toml version is '$pyVersion', not '$Version'" }
+$appVersion = (Select-String -Path src\app\__init__.py -Pattern '^__version__\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+if ($appVersion -ne $Version) { Fail "src/app/__init__.py __version__ is '$appVersion', not '$Version'" }
 
 git rev-parse -q --verify "refs/tags/$tag" *> $null
 if ($LASTEXITCODE -eq 0) { Fail "tag $tag already exists" }
