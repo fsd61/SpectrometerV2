@@ -14,17 +14,28 @@
       - tag v<Version> does not already exist
       - local main is already pushed to origin (home is never behind GitHub)
       - the full test suite passes
+      - CHANGELOG.md has a "## [<Version>]" section (used as the release notes)
 
     Then it creates an annotated tag v<Version>, pushes the tag to origin,
-    and pushes main plus the tag to github.
+    pushes main plus the tag to github, and creates a GitHub Release with
+    those notes and a SpectrometerV2-<Version>.zip source download attached
+    (GitHub counts downloads of attached files, not of its automatic
+    "Source code" links).
 
 .EXAMPLE
-    .\scripts\release.ps1 -Version 2.0.0
+    .\scripts\release.ps1 -Version 2.0.2
+
+.EXAMPLE
+    .\scripts\release.ps1 -Version 2.0.2 -ReleaseOnly    # retry just the GitHub Release
 #>
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^\d+\.\d+\.\d+$')]
-    [string]$Version
+    [string]$Version,
+
+    # Only create the GitHub Release (notes + zip) for a tag that is already
+    # published, e.g. to retry after a network failure. Skips tests and pushes.
+    [switch]$ReleaseOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,9 +45,60 @@ $tag = "v$Version"
 
 function Fail([string]$msg) { Write-Host "RELEASE ABORTED: $msg" -ForegroundColor Red; exit 1 }
 function Invoke-Git { & git.exe @args; if ($LASTEXITCODE -ne 0) { Fail "git $($args -join ' ') failed" } }
+. (Join-Path $PSScriptRoot 'github_api.ps1')
+
+function Get-ReleaseNotes([string]$ver) {
+    # The CHANGELOG section for this version: from "## [x.y.z]" to the next "## ".
+    $lines = Get-Content (Join-Path $root 'CHANGELOG.md') -Encoding UTF8
+    $start = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match "^## \[$([regex]::Escape($ver))\]") { $start = $i + 1; break }
+    }
+    if ($start -lt 0) { return $null }
+    $end = $lines.Count
+    for ($j = $start; $j -lt $lines.Count; $j++) { if ($lines[$j] -match '^## ') { $end = $j; break } }
+    return (($lines[$start..($end - 1)]) -join "`n").Trim()
+}
+
+function Publish-GitHubRelease {
+    $url = (git remote get-url github).Trim()
+    if ($url -notmatch 'github\.com[/:]([^/]+)/([^/]+?)(\.git)?$') { Fail "cannot parse github remote URL: $url" }
+    $repo = "$($Matches[1])/$($Matches[2])"
+
+    $body = $script:notes + "`n`n---`nDownload **SpectrometerV2-$Version.zip** below, then follow the " +
+        "[quick start](https://github.com/$repo#try-it-in-two-minutes-no-hardware-needed)."
+
+    $zip = Join-Path $env:TEMP "SpectrometerV2-$Version.zip"
+    Remove-Item $zip -ErrorAction SilentlyContinue
+    Invoke-Git archive --format=zip --prefix="SpectrometerV2-$Version/" -o $zip $tag
+
+    Write-Host "Creating GitHub release $tag..."
+    try {
+        $rel = Invoke-GitHubApi -Method Post -Path "repos/$repo/releases" -Body @{
+            tag_name = $tag; name = "SpectrometerV2 $Version"; body = $body; make_latest = 'true'
+        }
+        $asset = Send-GitHubReleaseAsset -Release $rel -FilePath $zip
+    } catch {
+        Fail "GitHub release failed: $($_.Exception.Message). Retry with: .\scripts\release.ps1 -Version $Version -ReleaseOnly"
+    } finally {
+        Remove-Item $zip -ErrorAction SilentlyContinue
+    }
+    Write-Host "Release page: $($rel.html_url)"
+    Write-Host "Download:     $($asset.browser_download_url)"
+}
 
 # --- Preconditions -----------------------------------------------------------
 if ((git remote) -notcontains 'github') { Fail "no 'github' remote configured" }
+
+$script:notes = Get-ReleaseNotes $Version
+if (-not $script:notes) { Fail "CHANGELOG.md has no '## [$Version]' section to use as release notes" }
+
+if ($ReleaseOnly) {
+    git ls-remote --exit-code --tags github "refs/tags/$tag" *> $null
+    if ($LASTEXITCODE -ne 0) { Fail "tag $tag is not on GitHub yet; run without -ReleaseOnly" }
+    Publish-GitHubRelease
+    exit 0
+}
 
 $branch = (git branch --show-current).Trim()
 if ($branch -ne 'main') { Fail "on branch '$branch'; releases are cut from main" }
@@ -68,5 +130,6 @@ if ($LASTEXITCODE -ne 0) { Fail "tests failed" }
 Invoke-Git tag -a $tag -m "SpectrometerV2 $Version"
 Invoke-Git push origin "refs/tags/${tag}"
 Invoke-Git push github "refs/heads/main:refs/heads/main" "refs/tags/${tag}"
+Publish-GitHubRelease
 
 Write-Host "Released $tag to GitHub." -ForegroundColor Green

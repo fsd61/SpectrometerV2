@@ -1,10 +1,56 @@
 # SpectrometerV2
 
-Modular, cross-platform scientific spectrometer application.
+Calibrated, tested software for DIY diffraction spectrometers, on Raspberry Pi,
+Windows, and Linux. A ground-up modernization of Les Wright's PySpectrometer2.
 
 > *Think like a physicist. Build like an engineer.*
 
-SpectrometerV2 is a ground-up modernization built around **one platform-neutral
+![SpectrometerV2 main window: live spectrum with detected peaks, a scrolling waterfall, and the peak table](Docs/images/main-window.png)
+
+## What it does
+
+- **Live spectrum and waterfall** with automatic peak detection and a peak
+  table you can read wavelengths straight off.
+- **Wavelength calibration** from known reference lines (click peaks to pick
+  points), with the calibration recorded alongside every measurement.
+- **Line analysis:** Savitzky-Golay smoothing, Gaussian peak fits, FWHM, and SNR.
+- **Built-in signal generator**, so you can learn the software, tune settings,
+  and check the analysis against known answers with no hardware at all.
+- **Logging you can query:** CSV by default, plus optional SQLite and InfluxDB
+  (for Grafana).
+- **Same keys as PySpectrometer2**, and its scientific results are preserved,
+  pinned by golden regression tests.
+- **328 automated tests.** Windows, Linux, and Raspberry Pi are all first-class.
+
+## Try it in two minutes, no hardware needed
+
+Clone the repository (or download the latest zip from
+[Releases](https://github.com/fsd61/SpectrometerV2/releases) and unzip it), then:
+
+```bash
+git clone https://github.com/fsd61/SpectrometerV2.git
+cd SpectrometerV2
+python -m venv .venv            # python3 on Linux
+# Windows: .venv\Scripts\activate      Linux: source .venv/bin/activate
+pip install -e ".[gui]"
+spectrometerv2 --set camera.backend=synthetic gui
+```
+
+The window opens in **[SIMULATED]** mode with a reference spectrum. Use the
+**Synthetic source** tab to add, move, and reshape peaks, change the noise
+level, or let the peaks drift, and watch the analysis follow.
+
+<p>
+  <img src="Docs/images/synthetic-source.png" width="49%" alt="Synthetic source panel: editable peak list with wavelength, amplitude and FWHM, plus SNR, baseline and drift settings">
+  <img src="Docs/images/keyboard-shortcuts.png" width="49%" alt="Keyboard shortcuts carried over from PySpectrometer2">
+</p>
+
+Ready for a real camera? [INSTALL.md](INSTALL.md) covers USB cameras, the
+Raspberry Pi camera, and platform-specific setup.
+
+## Design
+
+SpectrometerV2 is built around **one platform-neutral
 scientific core**, with all OS- and camera-hardware specifics behind adapters.
 Linux, Windows, and Raspberry Pi are equal first-class platforms. See the
 engineering documents in `Docs/` for the governing Requirements,
@@ -64,7 +110,7 @@ stores at once. See `config/user_fields.ini.example`.
 
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
 behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
-275 tests, installable via `pip install -e .`.
+328 tests, installable via `pip install -e .`.
 
 ## Usage
 
@@ -102,6 +148,12 @@ auto-discovered at startup — resolved from the project root, so it works from 
 subdirectory — and `--config PATH` overrides it. Keep alternate complete configs
 alongside it (e.g. `config/lab.ini`) and select one with `--config config/lab.ini`.
 `config/config.ini.example` is a browsable copy.
+
+## Feedback
+
+Tried it? Feedback of any kind is welcome: post in
+[Discussions](https://github.com/fsd61/SpectrometerV2/discussions), or open an
+[issue](https://github.com/fsd61/SpectrometerV2/issues) if something breaks.
 
 ## License
 

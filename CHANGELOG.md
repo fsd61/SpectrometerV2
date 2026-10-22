@@ -4,6 +4,16 @@ All notable changes to **SpectrometerV2** are recorded here, one entry per
 development step. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
+## [2.0.2] — 2026-10-22
+
+Documentation and release tooling; no change to application behavior.
+
+- README: what the software does, screenshots, and a two-minute quick start
+  that runs with no hardware, using the built-in synthetic source.
+- Each release is now published as a GitHub Release with these notes and a
+  `SpectrometerV2-<version>.zip` download (`scripts/release.ps1`, with GitHub
+  API helpers in `scripts/github_api.ps1`).
+
 ## [2.0.1] — 2026-10-21
 
 Repository housekeeping; no change to application behavior.
