@@ -14,13 +14,16 @@ Windows, and Linux. A ground-up modernization of Les Wright's PySpectrometer2.
 - **Wavelength calibration** from known reference lines (click peaks to pick
   points), with the calibration recorded alongside every measurement.
 - **Line analysis:** Savitzky-Golay smoothing, Gaussian peak fits, FWHM, and SNR.
+- **More signal from the same frame:** average the whole slit image instead of
+  3 rows, for up to about 10x the signal-to-noise of PySpectrometer2
+  ([details](#more-signal-from-the-same-frame)).
 - **Built-in signal generator**, so you can learn the software, tune settings,
   and check the analysis against known answers with no hardware at all.
 - **Logging you can query:** CSV by default, plus optional SQLite and InfluxDB
   (for Grafana).
 - **Same keys as PySpectrometer2**, and its scientific results are preserved,
   pinned by golden regression tests.
-- **328 automated tests.** Windows, Linux, and Raspberry Pi are all first-class.
+- **349 automated tests.** Windows, Linux, and Raspberry Pi are all first-class.
 
 ## Try it in two minutes, no hardware needed
 
@@ -47,6 +50,55 @@ level, or let the peaks drift, and watch the analysis follow.
 
 Ready for a real camera? [INSTALL.md](INSTALL.md) covers USB cameras, the
 Raspberry Pi camera, and platform-specific setup.
+
+## What sets it apart
+
+### More signal from the same frame
+
+PySpectrometer2 builds each spectrum from 3 rows of the camera image, but the
+slit image is usually hundreds of rows tall. SpectrometerV2 can average as many
+rows as the slit image covers. Random noise falls as 1/sqrt(rows), so the
+signal-to-noise ratio rises with the band:
+
+| Rows averaged          | Signal-to-noise vs PySpectrometer2 |
+|-----------------------:|-----------------------------------:|
+| 3 (PySpectrometer2)    | 1x                                 |
+| 25                     | 2.9x                               |
+| 81                     | 5.2x                               |
+| 401                    | 11.4x                              |
+
+*Simulated: 1280x800 8-bit frames, 3 counts of per-pixel noise, a 401-row slit
+image. Re-run with your own assumptions: `python scripts/measure_slice_height.py --help`.*
+
+```ini
+[processing]
+# Odd; keep the whole band inside the bright slit image.
+slice_height = 301
+# Keep the fraction; truncating to whole counts would cap the gain near 2.6x.
+slice_precision = float
+```
+
+A taller band does not improve resolution. If the slit image is tilted relative
+to the pixel rows, lines broaden as the band grows (about 6% for a 2-pixel tilt
+across 401 rows). The default stays at PySpectrometer2's 3 rows.
+
+### Simulated annealing line fitting
+
+Adapted from DiGennaro & Cowburn, "Parametric Estimation of Time-Domain NMR
+Signals Using Simulated Annealing", *J. Magn. Reson.* 96, 582–588 (1992): a
+global optimizer for fitting overlapping lines, with an auto-tuned starting
+temperature, Markov chains scaled to the number of lines, a quench to fast
+final convergence, and seeded, reproducible runs. Primer:
+[Docs/simulated_annealing_primer.pdf](Docs/simulated_annealing_primer.pdf).
+
+### Wavelet decomposition
+
+Multi-level discrete wavelet transforms (Daubechies, symlet, and Coiflet
+families), the basis for separating sharp lines from noise and slow baseline.
+Primer: [Docs/wavelet_transforms_primer.pdf](Docs/wavelet_transforms_primer.pdf).
+
+Simulated annealing and wavelets are in the `analysis` package, tested and
+configurable; their controls in the GUI are next.
 
 ## Design
 
@@ -110,7 +162,7 @@ stores at once. See `config/user_fields.ini.example`.
 
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
 behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
-328 tests, installable via `pip install -e .`.
+349 tests, installable via `pip install -e .`.
 
 ## Usage
 

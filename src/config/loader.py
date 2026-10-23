@@ -171,4 +171,6 @@ def _coerce(field: Field, raw_value: Any, where: str, errors: list) -> Any:
         errors.append(f"{where}: {value} is below minimum {field.min}")
     if field.max is not None and isinstance(value, (int, float)) and not isinstance(value, bool) and value > field.max:
         errors.append(f"{where}: {value} is above maximum {field.max}")
+    if field.odd and isinstance(value, int) and not isinstance(value, bool) and value % 2 == 0:
+        errors.append(f"{where}: {value} must be odd")
     return value

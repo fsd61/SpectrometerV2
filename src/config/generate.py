@@ -79,6 +79,8 @@ def render_ini(schema=SCHEMA) -> str:
                 meta.append(f"min={field.min}")
             if field.max is not None:
                 meta.append(f"max={field.max}")
+            if field.odd:
+                meta.append("odd")
             out.append("#   (" + "; ".join(meta) + ")")
             out.append(f"{key} = {_fmt(field.default)}")
             out.append("")

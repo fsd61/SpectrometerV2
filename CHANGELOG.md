@@ -4,6 +4,32 @@ All notable changes to **SpectrometerV2** are recorded here, one entry per
 development step. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
+## [2.1.0] — 2026-10-23
+
+Adjustable extraction band ("vertical slicing"): average the whole slit image
+for far more signal-to-noise. Defaults are unchanged.
+
+- `[processing] slice_height` (odd, default 3) sets how many rows of the slit
+  image are averaged into each spectral sample; `slice_precision` (`integer`
+  default, or `float`) keeps the fraction instead of truncating to whole
+  counts. Noise falls as 1/sqrt(rows): in simulation a 401-row band gives
+  11.4x the SNR of the 3-row baseline with `float`, but only ~2.6x with
+  `integer`. Resolution is unchanged; a tilted slit image broadens lines as the
+  band grows.
+- Fixed: `spectrometerv2 run` ignored `[processing]` entirely; it now extracts
+  exactly as the GUI does, via one shared `extraction_settings()`.
+- The synthetic camera can now model a real sensor: independent per-pixel
+  noise, a slit image of finite height, and slit tilt (all off by default, so
+  existing frames are identical).
+- New `scripts/measure_slice_height.py` reproduces the SNR and line-width
+  table under your own assumptions.
+- Config schema: integer keys can require odd values (`slice_height`).
+- README: what sets SpectrometerV2 apart, including the simulated annealing
+  line fitting (DiGennaro & Cowburn, J. Magn. Reson. 96, 1992) and wavelet
+  decomposition, and their current status.
+- 21 new tests (349 in all), including ground truth that noise falls as
+  1/sqrt(rows) and that a taller band does not narrow lines.
+
 ## [2.0.2] — 2026-10-22
 
 Documentation and release tooling; no change to application behavior.

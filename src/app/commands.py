@@ -12,7 +12,7 @@ import logging
 import sys
 from pathlib import Path
 
-from acquisition.service import acquire_spectrum
+from acquisition.service import acquire_spectrum, extraction_settings
 from analysis.pipeline import analyze
 from calibration.persistence import load_calibration_points
 from calibration.wavelength import calibrate
@@ -140,7 +140,7 @@ def generate_synthetic(config, logger: logging.Logger, output: str, plot: bool =
 def run(config, logger: logging.Logger, output: str, plot: bool = False) -> int:
     camera, simulated = select_camera(config, logger)
     try:
-        spectrum = acquire_spectrum(camera)
+        spectrum = acquire_spectrum(camera, **extraction_settings(config.section("processing")))
     finally:
         camera.shutdown()
     result = analyze(spectrum.intensities, wavelengths=spectrum.wavelengths or None, measure=True)

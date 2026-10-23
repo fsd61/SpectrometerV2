@@ -22,6 +22,7 @@ class Field:
     choices: Optional[Sequence[Any]] = None
     min: Optional[float] = None
     max: Optional[float] = None
+    odd: bool = False               # int keys only: value must be odd
 
 
 # NOTE: Keep this aligned with the Requirements doc. Synthetic-generator keys
@@ -242,6 +243,22 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "int", -1,
             "Sensor row used for the 1-D spectral slice; -1 = auto/center.",
             min=-1,
+        ),
+        "slice_height": Field(
+            "int", 3,
+            "Rows averaged into each spectral sample, centered on slice_row. 3 "
+            "matches PySpectrometer2. A taller band averages more of the slit "
+            "image: random noise falls roughly as 1/sqrt(rows), provided every "
+            "row lies inside the slit image and the lines are not tilted across "
+            "the band. Must be odd.",
+            min=1, max=4095, odd=True,
+        ),
+        "slice_precision": Field(
+            "str", "integer",
+            "'integer' truncates each averaged sample to whole counts, exactly as "
+            "PySpectrometer2 does. 'float' keeps the fraction; use it with a tall "
+            "slice_height, or most of the noise reduction is lost to rounding.",
+            choices=["integer", "float"],
         ),
     },
     "calibration": {

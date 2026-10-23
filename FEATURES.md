@@ -4,7 +4,7 @@
 `Original_Pyspectrometer2/` at tag `baseline-v1.0` — 1,384 lines across three
 files, no tests, no configuration, no logging.
 
-**Current:** 6,724 lines of application code, 3,622 lines of tests, 328 passing
+**Current:** 6,834 lines of application code, 3,837 lines of tests, 349 passing
 tests.
 
 This document lists what is *new*. The scientific behavior of the baseline is
@@ -107,10 +107,18 @@ graticule, wavelength→RGB. All preserved. Added:
   line fitting, with a seeded RNG for reproducibility
 - **End-to-end analysis pipeline** (`pipeline.py`) returning a structured result
   rather than printing
+- **Adjustable extraction band** (`[processing] slice_height`,
+  `slice_precision`). The baseline averages 3 rows of the slit image; any odd
+  height can now be averaged, with the fraction kept instead of truncated.
+  Noise falls as 1/sqrt(rows): in simulation, averaging a 401-row slit image
+  gives 11x the SNR of the 3-row baseline. Resolution is unchanged, and a
+  tilted slit image broadens lines as the band grows
+  (`scripts/measure_slice_height.py`).
 
 The FFT, wavelet and annealing functions existed in the `Wtx+SA` patch superset
 (`Docs/reference/`) but were never part of the shipped baseline. They are now
-first-class, dependency-gated, and tested.
+first-class, dependency-gated, and tested, with their settings in the config;
+GUI controls for them are not built yet.
 
 ## 8. Synthetic data
 
@@ -122,6 +130,8 @@ Entirely new — the baseline had no simulation capability at all.
   parameters are recorded in the spectrum metadata.
 - **Synthetic camera adapter** — fabricates *frames* that flow through the real
   grayscale and row-extraction path, so the pixel pipeline is exercised too.
+  Optional sensor realism — independent per-pixel noise, a slit image of finite
+  height, and slit tilt — for measuring extraction choices honestly.
 - **Time-varying stream** with drift, rendered as a waterfall PNG.
 - These are two distinct provenance identities — `synthetic-generator` versus
   `synthetic-camera` — recorded separately, because a synthesized spectrum and a
@@ -159,7 +169,7 @@ directory, with no metadata. Added:
 
 Entirely new — the baseline had no tests.
 
-- **328 tests** across unit, integration, regression and platform suites.
+- **349 tests** across unit, integration, regression and platform suites.
 - **Golden regression tests** pin the baseline's exact numerical output and
   prove the extracted modules equivalent, so the migration is verifiable rather
   than asserted.
@@ -189,7 +199,8 @@ The following baseline behavior is intentionally identical and is pinned by
   3rd-order for more
 - Graticule tick generation at 10 nm and 50 nm intervals
 - `wavelength_to_rgb` colour mapping across 380–750 nm
-- Vertical-slice extraction — centre row with 3-row averaging
+- Vertical-slice extraction — centre row with 3-row averaging (still the
+  default; the band height is now adjustable)
 
 Les Wright's scientific work is the foundation; this project is a
 re-implementation around it, not a replacement of it.

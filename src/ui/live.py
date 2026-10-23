@@ -18,7 +18,7 @@ from typing import Optional, Protocol, Tuple
 
 import numpy as np
 
-from acquisition.service import acquire_spectrum
+from acquisition.service import acquire_spectrum, extraction_settings
 from analysis.pipeline import SpectralAnalysis, analyze
 from cameras.base import CameraAdapter
 from processing.spectrum import Spectrum
@@ -225,9 +225,10 @@ class CameraFrameSource:
     camera: CameraAdapter
     center_row: Optional[int] = None
     average_rows: int = 3
+    precision: str = "integer"
 
     def next_spectrum(self) -> Spectrum:
-        return acquire_spectrum(self.camera, self.center_row, self.average_rows)
+        return acquire_spectrum(self.camera, self.center_row, self.average_rows, self.precision)
 
     def close(self) -> None:
         try:
@@ -262,10 +263,7 @@ def build_frame_source(config, logger=None) -> FrameSource:
 
     camera = create_camera_from_config(config.section("camera"))
     camera.initialize()
-    proc = config.section("processing")
-    slice_row = proc.get("slice_row", -1)
-    center_row = None if slice_row is None or slice_row < 0 else int(slice_row)
-    return CameraFrameSource(camera, center_row=center_row)
+    return CameraFrameSource(camera, **extraction_settings(config.section("processing")))
 
 
 # --------------------------------------------------------------------------- #
