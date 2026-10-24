@@ -44,3 +44,38 @@ class CaptureThread(QtCore.QThread):
         self._running = False
         self.wait(2000)
         self._engine.close()
+
+
+class TaskWorker(QtCore.QThread):
+    """Runs one slow, Qt-free computation (a line fit, a centroid comparison)
+    off the UI thread so the live view keeps updating.
+
+    ``fn`` is called as ``fn(progress, should_stop)``: ``progress(i, n)``
+    reports progress and ``should_stop()`` returns True once :meth:`cancel` has
+    been called. The result, or the error message, is delivered by signal.
+    """
+
+    progress = QtCore.Signal(int, int)
+    finished_ok = QtCore.Signal(object)
+    failed = QtCore.Signal(str)
+
+    def __init__(self, fn, parent=None):
+        super().__init__(parent)
+        self._fn = fn
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        self._cancelled = True
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancelled
+
+    def run(self) -> None:  # executes on the worker thread
+        try:
+            result = self._fn(lambda i, n: self.progress.emit(int(i), int(n)),
+                              lambda: self._cancelled)
+        except Exception as exc:  # noqa: BLE001 - surface to UI, don't crash
+            self.failed.emit(str(exc))
+            return
+        self.finished_ok.emit(result)

@@ -41,16 +41,32 @@ _DEC_LEN = {"db4": 8, "db6": 12, "sym5": 10, "coif3": 18}
 
 @dataclass
 class WaveletParams:
-    """Tunable parameters for the wavelet decomposition view (keys: family, level)."""
+    """Tunable parameters for wavelet decomposition and denoising.
 
-    wavelet: str = "db4"
+    Denoising is a switchable stage ahead of smoothing and peak detection. It
+    always reads the raw spectrum and never replaces it, so turning it off
+    restores exactly the original analysis (the ablation rule: every stage
+    reads immutable raw data).
+    """
+
+    wavelet: str = "sym5"
     level: int = 4
     # Which band the view overlays; runtime-only (not persisted to config).
     view_band: str = "approximation"
+    # Denoising stage.
+    denoise: bool = False
+    threshold_mode: str = "hard"
+    threshold_scale: float = 0.6
+    shifts: int = 8
 
     WAVELET_CHOICES = ("db4", "db6", "sym5", "coif3")
+    MODE_CHOICES = ("hard", "soft")
     LEVEL_MIN = 1
     LEVEL_MAX = 12
+    SCALE_MIN = 0.0
+    SCALE_MAX = 5.0
+    SHIFTS_MIN = 1
+    SHIFTS_MAX = 32
 
     def set_wavelet(self, name: str) -> None:
         if name not in self.WAVELET_CHOICES:
@@ -61,6 +77,21 @@ class WaveletParams:
 
     def adjust_level(self, delta: int) -> None:
         self.level = _clamp(self.level + delta, self.LEVEL_MIN, self.LEVEL_MAX)
+
+    def set_level(self, value: int) -> None:
+        self.level = _clamp(int(value), self.LEVEL_MIN, self.LEVEL_MAX)
+
+    def set_threshold_mode(self, mode: str) -> None:
+        if mode not in self.MODE_CHOICES:
+            raise ValueError(f"unknown threshold mode {mode!r}; choose from {list(self.MODE_CHOICES)}")
+        self.threshold_mode = mode
+
+    def set_threshold_scale(self, value: float) -> None:
+        self.threshold_scale = round(_clamp(float(value), self.SCALE_MIN, self.SCALE_MAX), 4)
+
+    def toggle_denoise(self) -> bool:
+        self.denoise = not self.denoise
+        return self.denoise
 
     def effective_level(self, n_samples: int) -> int:
         """The level actually used for ``n_samples`` points.
@@ -80,12 +111,25 @@ class WaveletParams:
         """Keyword args for :func:`analysis.transforms.wavelet_transform`."""
         return {"wavelet": self.wavelet, "level": self.level}
 
+    def denoise_kwargs(self) -> dict:
+        """Keyword args for :func:`analysis.transforms.wavelet_denoise`."""
+        return {
+            "wavelet": self.wavelet, "level": self.level,
+            "threshold_scale": float(self.threshold_scale),
+            "mode": self.threshold_mode,
+            "shifts": _clamp(int(self.shifts), self.SHIFTS_MIN, self.SHIFTS_MAX),
+        }
+
     @classmethod
     def from_config(cls, section) -> "WaveletParams":
         """Build from a ``[wavelet]`` config section (dict-like)."""
         return cls(
-            wavelet=str(section.get("wavelet", "db4")),
+            wavelet=str(section.get("wavelet", "sym5")),
             level=int(section.get("level", 4)),
+            denoise=bool(section.get("denoise", False)),
+            threshold_mode=str(section.get("threshold_mode", "hard")),
+            threshold_scale=float(section.get("threshold_scale", 0.6)),
+            shifts=int(section.get("shifts", 8)),
         )
 
 
@@ -107,6 +151,10 @@ class SAFitParams:
     bound_tightness: float = 0.5   # used when deriving bounds from peaks
     seed: int = 0
     lock_seed: bool = True         # reproducibility by default
+    # Line fitting (GUI): fit the raw spectrum unless explicitly asked otherwise,
+    # and refine annealing with a Levenberg-Marquardt polish.
+    fit_denoised: bool = False
+    polish: bool = True
 
     # Advanced internals — good auto defaults; off the config surface.
     auto_T0: bool = True
@@ -164,6 +212,20 @@ class SAFitParams:
             "max_cycles": int(self.max_cycles),
             "step_size": float(self.step_size),
             "random_seed": int(self.seed) if self.lock_seed else None,
+        }
+
+    def fit_kwargs(self) -> dict:
+        """Keyword args for :func:`analysis.linefit.fit_lines` (bar the data)."""
+        return {
+            "schedule": self.schedule,
+            "max_cycles": int(self.max_cycles),
+            "tol": float(self.tol),
+            "markov_factor": int(self.markov_factor),
+            "quench_cycle": int(self.quench_cycle),
+            "step_size": float(self.step_size),
+            "bound_tightness": float(self.bound_tightness),
+            "random_seed": int(self.seed) if self.lock_seed else None,
+            "polish": bool(self.polish),
         }
 
     @classmethod

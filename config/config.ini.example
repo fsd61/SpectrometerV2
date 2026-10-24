@@ -37,8 +37,8 @@ console = true
 
 
 [camera]
-# Camera source. 'auto' picks the CSI (Pi ribbon) camera on a Raspberry Pi, otherwise a USB camera; 'csi' = Pi ribbon camera; 'usb' = USB/webcam; 'synthetic' = simulated data (clearly labelled). ('picamera2' is accepted as an alias for 'csi'.)
-#   (type=str; default=auto; choices=auto, usb, csi, picamera2, synthetic)
+# Camera source. 'auto' picks the CSI (Pi ribbon) camera on a Raspberry Pi, otherwise a USB camera; 'csi' = Pi ribbon camera; 'usb' = USB/webcam; 'synthetic' = simulated spectra (clearly labelled); 'synthetic-camera' = a simulated OV9281 producing noisy 1280x800 frames, for trying the extraction band and line fitting without hardware. ('picamera2' is accepted as an alias for 'csi'.)
+#   (type=str; default=auto; choices=auto, usb, csi, picamera2, synthetic, synthetic-camera)
 backend = auto
 
 # When 'auto' finds no camera: 'prompt' asks (only in an interactive terminal; otherwise behaves like 'error'), 'error' exits with guidance, 'synthetic' falls back to simulated data with a warning.
@@ -85,13 +85,29 @@ snapshot_dir = snapshots
 
 
 [wavelet]
-# PyWavelets wavelet family for the decomposition view.
-#   (type=str; default=db4; choices=db4, db6, sym5, coif3)
-wavelet = db4
+# PyWavelets wavelet family for decomposition and denoising. sym5 and coif3 are nearly symmetric, so they do not pull line centers.
+#   (type=str; default=sym5; choices=db4, db6, sym5, coif3)
+wavelet = sym5
 
 # Decomposition depth. Clamped at compute time to the maximum the sample count allows (see the effective-level readout).
 #   (type=int; default=4; min=1; max=12)
 level = 4
+
+# Start with wavelet denoising on. It feeds smoothing and peak detection only; FWHM and SNR are always measured on the raw spectrum.
+#   (type=bool; default=false)
+denoise = false
+
+# 'hard' keeps surviving coefficients unchanged (preserves line height); 'soft' shrinks them (smoother, but lowers and can shift dim lines).
+#   (type=str; default=hard; choices=hard, soft)
+threshold_mode = hard
+
+# Multiplier on the universal threshold sigma*sqrt(2 ln N). 1.0 is the textbook value; 0.6 removes less noise but keeps dim lines intact.
+#   (type=float; default=0.6; min=0.0; max=5.0)
+threshold_scale = 0.6
+
+# Cycle-spinning shifts averaged (1 = plain transform). More shifts remove the dependence on where a line falls on the wavelet grid.
+#   (type=int; default=8; min=1; max=32)
+shifts = 8
 
 
 [annealing]

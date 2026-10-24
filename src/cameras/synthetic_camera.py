@@ -20,6 +20,25 @@ _FWHM_TO_SIGMA = 1.0 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
 DEFAULT_LINES = [(120, 200.0, 8.0), (300, 120.0, 6.0), (410, 180.0, 10.0), (610, 90.0, 7.0)]
 
 
+# The 'synthetic-camera' backend: an OV9281-like sensor (1280 x 800, 8-bit,
+# monochrome) with per-pixel noise and a 401-row slit image, so the extraction
+# band and line fitting can be tried without hardware. The pair at 700 / 704.4 px
+# mimics the Ar I 810.37 / 811.53 nm doublet at 0.266 nm/px: about one line
+# width apart, which peak detection sees as a single line.
+OV9281_DEMO_LINES = [
+    (300.0, 120.0, 4.0), (520.0, 45.0, 4.0), (700.0, 100.0, 4.0),
+    (704.4, 70.0, 4.0), (980.0, 140.0, 6.0), (1100.0, 30.0, 4.0),
+]
+
+
+def ov9281_demo_camera(seed: int = 0) -> "SyntheticCameraAdapter":
+    """A simulated OV9281 for the hardware-free 'synthetic-camera' backend."""
+    return SyntheticCameraAdapter(
+        width=1280, height=800, lines=OV9281_DEMO_LINES, baseline=10.0,
+        pixel_noise=3.0, slit_rows=401, seed=seed,
+    )
+
+
 class SyntheticCameraAdapter(CameraAdapter):
     """A camera that fabricates deterministic spectral frames."""
 
@@ -87,11 +106,19 @@ class SyntheticCameraAdapter(CameraAdapter):
         rows = np.arange(self.height, dtype=float)[:, None]
         cols = np.arange(self.width, dtype=float)[None, :]
         center = self.height // 2
-        signal = np.zeros((self.height, self.width))
-        for line_center, amp, fwhm in self.lines:
-            sigma = fwhm * _FWHM_TO_SIGMA
-            shifted = line_center + self.tilt * (rows - center)
-            signal += amp * np.exp(-0.5 * ((cols - shifted) / sigma) ** 2)
+        if self.tilt == 0:
+            # Every row sees the same profile: compute it once and broadcast.
+            profile = np.zeros(self.width)
+            for line_center, amp, fwhm in self.lines:
+                sigma = fwhm * _FWHM_TO_SIGMA
+                profile += amp * np.exp(-0.5 * ((cols[0] - line_center) / sigma) ** 2)
+            signal = np.broadcast_to(profile, (self.height, self.width))
+        else:
+            signal = np.zeros((self.height, self.width))
+            for line_center, amp, fwhm in self.lines:
+                sigma = fwhm * _FWHM_TO_SIGMA
+                shifted = line_center + self.tilt * (rows - center)
+                signal = signal + amp * np.exp(-0.5 * ((cols - shifted) / sigma) ** 2)
         if self.slit_rows is not None:
             top = center - self.slit_rows // 2
             lit = (rows >= top) & (rows < top + self.slit_rows)

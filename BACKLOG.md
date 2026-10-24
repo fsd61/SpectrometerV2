@@ -56,8 +56,13 @@ split exists to avoid.
   real USB OV9281** (opens at native 1280×800, `run` acquires end-to-end, live GUI
   renders on real frames); the remaining M8 step is the **on-bench argon-line
   calibration** (FS-2 doublet at 810.4/811.5 nm) — optical work, not software.
-  The wavelet/SA fit *panel* is not built yet, though its Qt-free parameter core
-  (`ui/analysis_params.py`) and config sections are in place.
+  The **Analysis panel** (v2.2.0) adds the extraction band, wavelet denoising,
+  simulated-annealing line fitting, and the sub-pixel calibration check.
+- **Display smoothing vs narrow lines** — the live trace uses the baseline's
+  fixed 17-point Savitzky-Golay window, which on the OV9281's ~4 px lines draws
+  them at roughly half height and blurs a doublet into one peak. Measurements
+  are unaffected (FWHM/SNR and line fits use the raw data), but the window
+  should scale with the line width, or be exposed as a control.
 - **Advanced analysis** — **done.** FFT and wavelet decomposition
   (`analysis/transforms.py`; wavelet gated behind the `[wavelet]` extra) and
   simulated-annealing line fitting (`analysis/annealing.py`, NumPy-only) are all

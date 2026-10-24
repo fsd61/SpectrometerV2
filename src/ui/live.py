@@ -21,7 +21,9 @@ import numpy as np
 from acquisition.service import acquire_spectrum, extraction_settings
 from analysis.pipeline import SpectralAnalysis, analyze
 from cameras.base import CameraAdapter
+from processing.extraction import PRECISIONS
 from processing.spectrum import Spectrum
+from ui.analysis_params import WaveletParams
 from synthetic.generator import SyntheticSpectrumSpec
 from synthetic.stream import SyntheticStream
 
@@ -226,9 +228,41 @@ class CameraFrameSource:
     center_row: Optional[int] = None
     average_rows: int = 3
     precision: str = "integer"
+    frame_height: Optional[int] = None   # learned from the first frame
 
     def next_spectrum(self) -> Spectrum:
-        return acquire_spectrum(self.camera, self.center_row, self.average_rows, self.precision)
+        spectrum = acquire_spectrum(self.camera, self.center_row, self.average_rows, self.precision)
+        self.frame_height = int(spectrum.metadata.get("height", 0)) or self.frame_height
+        return spectrum
+
+    def max_band_height(self) -> Optional[int]:
+        """Tallest odd band that fits the frame about the current center row."""
+        if not self.frame_height:
+            return None
+        center = self.frame_height // 2 if self.center_row is None else int(self.center_row)
+        half = min(center, self.frame_height - 1 - center)
+        return 2 * half + 1
+
+    def set_extraction(self, average_rows: Optional[int] = None,
+                       precision: Optional[str] = None) -> None:
+        """Change the extraction band live (GUI). Validated here, before the
+        capture thread uses it, so a bad value can never stop acquisition.
+
+        Plain attribute assignment, read by the capture thread on its next
+        frame (same pattern as ``SyntheticFrameSource.set_spec``).
+        """
+        if average_rows is not None:
+            rows = int(average_rows)
+            if rows < 1 or rows % 2 == 0:
+                raise ValueError("slice height must be a positive odd number of rows")
+            limit = self.max_band_height()
+            if limit is not None and rows > limit:
+                raise ValueError(f"slice height {rows} does not fit the frame (max {limit})")
+            self.average_rows = rows
+        if precision is not None:
+            if precision not in PRECISIONS:
+                raise ValueError(f"precision must be one of {PRECISIONS}")
+            self.precision = precision
 
     def close(self) -> None:
         try:
@@ -281,6 +315,8 @@ class LiveEngine:
     params: LiveParams = field(default_factory=LiveParams)
     calibration: Optional[list] = None   # per-pixel wavelengths (nm), or None
     calibration_meta: dict = field(default_factory=dict)
+    wavelet: WaveletParams = field(default_factory=WaveletParams)
+    denoise_error: Optional[str] = None  # set if denoising could not run
     _hold: Optional[np.ndarray] = field(default=None, repr=False)
 
     def set_calibration(self, wavelengths, result=None) -> None:
@@ -357,10 +393,42 @@ class LiveEngine:
             )
 
         wavelengths = list(spectrum.wavelengths) if len(spectrum.wavelengths) else None
-        result = analyze(
-            spectrum.intensities, wavelengths=wavelengths, **self.params.analyze_kwargs()
-        )
+
+        # Optional wavelet-denoising stage. It reads the raw spectrum and never
+        # replaces it: smoothing and peak detection see the denoised series,
+        # while FWHM/SNR are measured on the raw one (a denoised trace has
+        # artificially low noise). The Spectrum keeps the raw data, so
+        # snapshots stay raw and record the stage in their metadata.
+        denoised = None
+        if self.wavelet.denoise:
+            denoised = self._denoise(spectrum.intensities)
+        if denoised is not None:
+            kwargs = self.wavelet.denoise_kwargs()
+            spectrum = Spectrum(
+                wavelengths=spectrum.wavelengths, intensities=spectrum.intensities,
+                metadata={**spectrum.metadata, "wavelet_denoise": kwargs},
+            )
+            result = analyze(denoised, wavelengths=wavelengths,
+                             measure_on=spectrum.intensities, **self.params.analyze_kwargs())
+            result.denoised = [float(v) for v in denoised]
+        else:
+            result = analyze(
+                spectrum.intensities, wavelengths=wavelengths, **self.params.analyze_kwargs()
+            )
         return spectrum, result
+
+    def _denoise(self, intensities):
+        """Denoise for the analysis, or None (with ``denoise_error`` set) if
+        PyWavelets is missing or the transform fails; capture never stops."""
+        try:
+            from analysis.transforms import wavelet_denoise
+
+            out = wavelet_denoise(intensities, **self.wavelet.denoise_kwargs()).denoised
+            self.denoise_error = None
+            return out
+        except Exception as exc:  # noqa: BLE001 - surface in the UI, keep capturing
+            self.denoise_error = str(exc)
+            return None
 
     def close(self) -> None:
         self.source.close()
@@ -621,18 +689,83 @@ class CalibrationSession:
     def wavelengths(self) -> list:
         return [w for _, w in self.points]
 
-    def fit(self, width: int):
-        """Fit the pixel->wavelength polynomial over a sensor ``width`` px wide."""
+    def fit(self, width: int, pixels=None):
+        """Fit the pixel->wavelength polynomial over a sensor ``width`` px wide.
+
+        ``pixels`` overrides the picked whole-pixel positions, e.g. with the
+        sub-pixel centers from :meth:`fitted_pixels`.
+        """
         from calibration.wavelength import calibrate
 
-        return calibrate(self.pixels(), self.wavelengths(), width)
+        return calibrate(self.pixels() if pixels is None else list(pixels),
+                         self.wavelengths(), width)
 
     def axis(self, width: int) -> list:
         """The per-pixel wavelength axis produced by the current points."""
         return self.fit(width).wavelengths
 
-    def save(self, path):
-        """Persist the picked points in the baseline caldata format."""
+    def fitted_pixels(self, intensities, merge_px: float = 10.0, **fit_kwargs) -> list:
+        """Sub-pixel line centers for the picks, fitted on ``intensities``.
+
+        Picks within ``merge_px`` of each other are fitted together, so both
+        halves of a doublet get their own center.
+        """
+        from analysis.linefit import refine_centers
+
+        return refine_centers(intensities, self.pixels(), merge_px=merge_px, **fit_kwargs)
+
+    def save(self, path, pixels=None):
+        """Persist the points in the baseline caldata format (``pixels``
+        overrides the picked positions, as in :meth:`fit`)."""
         from calibration.persistence import write_calibration_points
 
-        return write_calibration_points(path, self.pixels(), self.wavelengths())
+        return write_calibration_points(
+            path, self.pixels() if pixels is None else list(pixels), self.wavelengths())
+
+
+# --------------------------------------------------------------------------- #
+# A/B check: whole-pixel picks vs fitted line centers (Qt-free)
+# --------------------------------------------------------------------------- #
+@dataclass
+class CentroidRow:
+    wavelength: float          # known line wavelength, nm
+    pick_px: float             # whole-pixel pick
+    fitted_px: float           # sub-pixel center from line fitting
+    residual_pick: float       # leave-one-out prediction error, nm
+    residual_fitted: float
+
+
+@dataclass
+class CentroidComparison:
+    rows: list                 # list[CentroidRow], in pick order
+    rms_pick: float            # nm
+    rms_fitted: float          # nm
+
+    @property
+    def improvement(self) -> Optional[float]:
+        """Fractional reduction of the RMS residual by fitted centers."""
+        if self.rms_pick <= 0:
+            return None
+        return 1.0 - self.rms_fitted / self.rms_pick
+
+
+def compare_centroid_methods(session: CalibrationSession, intensities,
+                             merge_px: float = 10.0, **fit_kwargs) -> CentroidComparison:
+    """Compare calibration accuracy with whole-pixel picks vs fitted centers.
+
+    Each calibration line is left out in turn, the calibration is fitted to the
+    rest, and the error predicting the left-out line is recorded -- for the
+    picked positions and for the fitted ones. The difference isolates the
+    effect of line-center precision on wavelength accuracy. Needs 4+ points.
+    """
+    from calibration.wavelength import leave_one_out_residuals
+
+    picks = [float(p) for p in session.pixels()]
+    wavelengths = session.wavelengths()
+    fitted = session.fitted_pixels(intensities, merge_px=merge_px, **fit_kwargs)
+    res_pick = leave_one_out_residuals(picks, wavelengths)
+    res_fit = leave_one_out_residuals(fitted, wavelengths)
+    rows = [CentroidRow(w, p, f, rp, rf)
+            for w, p, f, rp, rf in zip(wavelengths, picks, fitted, res_pick, res_fit)]
+    rms = lambda r: float(np.sqrt(np.mean(np.square(r))))  # noqa: E731
+    return CentroidComparison(rows=rows, rms_pick=rms(res_pick), rms_fitted=rms(res_fit))

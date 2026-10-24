@@ -13,23 +13,30 @@ display.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import time
 
+import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from analysis.measurements import estimate_noise
+from ui.analysis_params import SAFitParams, WaveletParams
 from ui.live import (
     LIVE_SHORTCUTS,
     CalibrationSession,
+    CameraFrameSource,
     LiveEngine,
     LiveParams,
     SyntheticFrameSource,
     build_frame_source,
+    compare_centroid_methods,
     snap_pixel_to_peak,
     snapshot_spectrum,
 )
 from errors import CalibrationError
-from .controller import CaptureThread
+from .analysis_panel import AnalysisDock
+from .controller import CaptureThread, TaskWorker
 from .controls import ControlDock
 from .spectrum_view import SpectrumView
 from .synthetic_controls import SyntheticDock
@@ -66,6 +73,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self._snapshot_dir = str(gui.get("snapshot_dir", "snapshots"))
 
         self._params = LiveParams(measure=True)
+        self._wavelet = (WaveletParams.from_config(config.section("wavelet"))
+                         if config is not None else WaveletParams())
+        self._sa = (SAFitParams.from_config(config.section("annealing"))
+                    if config is not None else SAFitParams())
+        self._last_result = None
+        self._source = None
+        self._fit_mode = False                # plot clicks fit lines when True
+        self._worker: TaskWorker | None = None
+        self._worker_kind = ""
+        self._last_fit = None                 # (LineFitResult, wavelengths, source)
+        self._last_comparison = None
+        self._use_fitted = False
+        self._extra_actions: dict[str, QtGui.QAction] = {}
         self._sink = None                     # built lazily on first snapshot
         self._last_spectrum = None
         self._last_peaks: list[int] = []      # peak pixel indices, for click-snap
@@ -91,6 +111,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self._dock = ControlDock(self._params, on_change=self._sync_controls)
         self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self._dock)
         self._synth_dock: SyntheticDock | None = None
+
+        self._analysis = AnalysisDock(
+            self._wavelet, self._sa,
+            wavelet_available=importlib.util.find_spec("pywt") is not None,
+        )
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self._analysis)
+        self.tabifyDockWidget(self._dock, self._analysis)
+        self._dock.raise_()
+        self._analysis.set_extraction_source(False)
+        self._analysis.extractionChanged.connect(self._on_extraction_changed)
+        self._analysis.denoiseToggled.connect(self._on_dock_denoise)
+        self._analysis.fitModeToggled.connect(self._set_fit_mode)
+        self._analysis.clearFitRequested.connect(self.act_clear_fit)
+        self._analysis.cancelFitRequested.connect(self._cancel_worker)
+        self._analysis.compareRequested.connect(self.act_compare_centroids)
+        self._analysis.useFittedToggled.connect(self._set_use_fitted)
+        self._analysis.rawOverlayToggled.connect(self._view.set_raw_overlay)
 
         self._build_menu()
         self._build_toolbar()
@@ -137,11 +174,41 @@ class MainWindow(QtWidgets.QMainWindow):
         menus["Calibrate"].addSeparator()
         menus["Calibrate"].addAction(self._pick_action)
 
+        # SpectrometerV2 analysis additions (keys w, f are new; the 13 original
+        # keys stay exactly as they were).
+        use_fitted = self._extra_action("use_fitted", "Use fitted line centers",
+                                        "Apply calibrations from sub-pixel fitted line centers",
+                                        checkable=True)
+        use_fitted.toggled.connect(self._set_use_fitted)
+        compare = self._extra_action("compare", "Compare centroid methods…",
+                                     "Leave-one-out calibration error: whole-pixel picks vs fitted centers")
+        compare.triggered.connect(lambda *_: self.act_compare_centroids())
+        menus["Calibrate"].addAction(use_fitted)
+        menus["Calibrate"].addAction(compare)
+
+        denoise = self._extra_action("w", "Wavelet denoising", "Denoise before smoothing "
+                                     "and peak detection (FWHM/SNR stay on raw data)",
+                                     checkable=True, key="w")
+        denoise.setChecked(self._wavelet.denoise)
+        denoise.toggled.connect(self._on_denoise_action)
+        fit = self._extra_action("f", "Fit lines (click plot)", "Click a line to fit it by "
+                                 "simulated annealing + least-squares polish",
+                                 checkable=True, key="f")
+        fit.toggled.connect(self._set_fit_mode)
+        clear = self._extra_action("clear_fit", "Clear line fit", "Remove the fitted lines")
+        clear.triggered.connect(lambda *_: self.act_clear_fit())
+        menus["Analysis"].addSeparator()
+        for act in (denoise, fit, clear):
+            menus["Analysis"].addAction(act)
+
         self._view_menu = bar.addMenu("&View")
         toggle = self._dock.toggleViewAction()
         toggle.setText("Controls panel")
         toggle.setShortcut("Ctrl+B")
         self._view_menu.addAction(toggle)
+        analysis_toggle = self._analysis.toggleViewAction()
+        analysis_toggle.setText("Analysis panel")
+        self._view_menu.addAction(analysis_toggle)
 
         help_menu = bar.addMenu("&Help")
         sc = QtGui.QAction("Keyboard shortcuts", self)
@@ -165,11 +232,23 @@ class MainWindow(QtWidgets.QMainWindow):
             prev_menu = spec.menu
         self._view_menu.addAction(tb.toggleViewAction())
 
+    def _extra_action(self, name, label, tip, checkable=False, key=None) -> QtGui.QAction:
+        act = QtGui.QAction(label, self)
+        act.setStatusTip(tip)
+        act.setToolTip(tip + (f"  ({key})" if key else ""))
+        act.setCheckable(checkable)
+        if key:
+            act.setShortcut(QtGui.QKeySequence(key))
+        self._extra_actions[name] = act
+        return act
+
     def _show_shortcuts(self) -> None:
         rows = "\n".join(f"  {s.key}   {s.label}" for s in LIVE_SHORTCUTS)
+        added = "\n".join(f"  {k}   {self._extra_actions[k].text()}" for k in ("w", "f"))
         QtWidgets.QMessageBox.information(
             self, "Keyboard shortcuts",
-            "SpectrometerV2 live keys (from PySpectrometer2):\n\n" + rows,
+            "SpectrometerV2 live keys (from PySpectrometer2):\n\n" + rows
+            + "\n\nAdded in SpectrometerV2:\n\n" + added,
         )
 
     # ------------------------------------------------------------------ #
@@ -232,9 +311,27 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Enable Calibrate ▸ Pick points and click emission lines."
             )
             return
+        if self._use_fitted:
+            if self._last_spectrum is None:
+                self._flash_status("No frame yet to fit the picked lines on.")
+                return
+            intensities = list(self._last_spectrum.intensities)
+            kwargs = self._sa.fit_kwargs()
+            self._start_worker(
+                "calibrate",
+                lambda progress, stop: session.fitted_pixels(intensities, **kwargs),
+                "Fitting line centers for the calibration…",
+            )
+            return
+        self._apply_calibration(None)
+
+    def _apply_calibration(self, pixels) -> None:
+        """Fit + apply the calibration from the picks, or from ``pixels``
+        (fitted sub-pixel centers) when given."""
+        session = self._cal_session
         width = self._sensor_width()
         try:
-            result = session.fit(width)
+            result = session.fit(width, pixels=pixels)
         except CalibrationError as exc:
             self._flash_status(f"Calibration failed: {exc}")
             self.logger.error("Calibration failed: %s", exc)
@@ -244,11 +341,12 @@ class MainWindow(QtWidgets.QMainWindow):
             # Pass the fit itself, not just the axis, so every calibrated frame
             # records which calibration produced it.
             self._engine.set_calibration(result.wavelengths, result)
-        saved = self._save_calibration(session)
+        saved = self._save_calibration(session, pixels)
         r2 = "" if result.r_squared is None else f", R²={result.r_squared:.5f}"
         tail = f" → {saved}" if saved else ""
+        how = "fitted centers" if pixels is not None else "picks"
         self._flash_status(
-            f"Calibrated: {session.count} points, {result.order}-order fit{r2}{tail}"
+            f"Calibrated from {how}: {session.count} points, {result.order}-order fit{r2}{tail}"
         )
         self.logger.info("Applied calibration: %d points order=%d",
                          session.count, result.order)
@@ -261,6 +359,8 @@ class MainWindow(QtWidgets.QMainWindow):
     # Click-to-calibrate helpers (M6)
     # ------------------------------------------------------------------ #
     def _toggle_pick_mode(self, on: bool) -> None:
+        if on and self._fit_mode:
+            self._set_fit_mode(False)
         self._calib_mode = bool(on)
         self._flash_status(
             "Pick mode ON — click emission lines to add points, then press c."
@@ -268,6 +368,9 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def _on_plot_click(self, x: float) -> None:
+        if self._fit_mode:
+            self._fit_at(self._x_to_pixel(x))
+            return
         if not self._calib_mode:
             return
         pixel = snap_pixel_to_peak(x, self._last_peaks)
@@ -295,11 +398,11 @@ class MainWindow(QtWidgets.QMainWindow):
             return int(self.config.section("camera").get("width", 1920))
         return 1920
 
-    def _save_calibration(self, session) -> str:
+    def _save_calibration(self, session, pixels=None) -> str:
         if self.config is None:
             return ""
         try:
-            path = session.save(self.config.get("calibration", "file"))
+            path = session.save(self.config.get("calibration", "file"), pixels=pixels)
             return str(path)
         except Exception as exc:  # noqa: BLE001 - non-fatal; calibration still applied
             self.logger.warning("Could not save calibration points: %s", exc)
@@ -366,7 +469,15 @@ class MainWindow(QtWidgets.QMainWindow):
             toggle.setText("Synthetic source panel")
             self._view_menu.addAction(toggle)
 
-        engine = LiveEngine(source, self._params)
+        self._source = source
+        if isinstance(source, CameraFrameSource):
+            self._analysis.set_extraction_source(True, source.average_rows, source.precision)
+            from cameras.synthetic_camera import SyntheticCameraAdapter
+
+            if isinstance(source.camera, SyntheticCameraAdapter):
+                self.setWindowTitle("SpectrometerV2 — [SIMULATED CAMERA]")
+
+        engine = LiveEngine(source, self._params, wavelet=self._wavelet)
         self._engine = engine
         fps = float(self.config.section("gui").get("fps", 15.0))
         self._thread = CaptureThread(engine, fps=fps)
@@ -387,20 +498,230 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_frame(self, spectrum, result) -> None:
         self._last_spectrum = spectrum
+        self._last_result = result
         self._last_peaks = [p.pixel for p in result.peaks]
         self._view.update_spectrum(spectrum, result)
         self._waterfall.update_spectrum(spectrum, result)
         self._dock.update_readouts(spectrum, result)
+        self._update_analysis_readouts(spectrum, result)
         if time.monotonic() >= self._status_hold_until:
             self.statusBar().showMessage(
                 f"Live — {len(spectrum)} samples, {len(result.peaks)} peaks"
             )
+
+    # ------------------------------------------------------------------ #
+    # Analysis panel: extraction band, denoising, line fitting, A/B check
+    # ------------------------------------------------------------------ #
+    def _update_analysis_readouts(self, spectrum, result) -> None:
+        if isinstance(self._source, CameraFrameSource):
+            limit = self._source.max_band_height()
+            if limit:
+                self._analysis.set_extraction_limit(limit)
+        engine_error = self._engine.denoise_error if self._engine is not None else None
+        if engine_error:
+            self._analysis.show_denoise_error(engine_error)
+            return
+        if len(spectrum.intensities) < 20:
+            return
+        raw = np.asarray(spectrum.intensities, dtype=float)
+        den = getattr(result, "denoised", None)
+        removed = (float(np.sqrt(np.mean((raw - np.asarray(den, dtype=float)) ** 2)))
+                   if den is not None else None)
+        self._analysis.update_noise(estimate_noise(raw), removed)
+
+    def _on_extraction_changed(self, rows: int, precision: str) -> None:
+        source = self._source
+        if not isinstance(source, CameraFrameSource):
+            return
+        try:
+            source.set_extraction(rows, precision)
+        except ValueError as exc:
+            self._flash_status(str(exc))
+            self._analysis.revert_extraction(source.average_rows, source.precision)
+            return
+        self._flash_status(f"Slice height {rows} rows, {precision} precision.")
+
+    def _on_denoise_action(self, checked: bool) -> None:
+        self._wavelet.denoise = bool(checked)
+        self._analysis.sync_denoise()
+        self._flash_status(f"Wavelet denoising {'on' if checked else 'off'}.")
+
+    def _on_dock_denoise(self, checked: bool) -> None:
+        act = self._extra_actions.get("w")
+        if act is not None:
+            act.blockSignals(True)
+            act.setChecked(bool(checked))
+            act.blockSignals(False)
+        self._flash_status(f"Wavelet denoising {'on' if checked else 'off'}.")
+
+    def _set_fit_mode(self, on: bool) -> None:
+        on = bool(on)
+        if on and self._calib_mode:
+            self._pick_action.setChecked(False)
+        self._fit_mode = on
+        act = self._extra_actions.get("f")
+        if act is not None and act.isChecked() != on:
+            act.blockSignals(True)
+            act.setChecked(on)
+            act.blockSignals(False)
+        self._analysis.set_fit_mode(on)
+        self._flash_status("Fit mode ON — click a line on the plot." if on else "Fit mode off.")
+
+    def _set_use_fitted(self, on: bool) -> None:
+        self._use_fitted = bool(on)
+        act = self._extra_actions.get("use_fitted")
+        if act is not None and act.isChecked() != self._use_fitted:
+            act.blockSignals(True)
+            act.setChecked(self._use_fitted)
+            act.blockSignals(False)
+        self._analysis.set_use_fitted(self._use_fitted)
+        self._flash_status("Calibrations will use fitted line centers." if on
+                           else "Calibrations will use the whole-pixel picks.")
+
+    def _x_to_pixel(self, x: float) -> float:
+        """Plot x (nm on a calibrated axis, else pixel) -> pixel index."""
+        spec = self._last_spectrum
+        if spec is not None and len(spec.wavelengths) > 0:
+            wl = np.asarray(spec.wavelengths, dtype=float)
+            return float(np.argmin(np.abs(wl - float(x))))
+        return float(x)
+
+    def _fit_at(self, center_px: float, window: int = 12) -> None:
+        """Fit the line(s) around ``center_px`` on the latest frame, in the background."""
+        spectrum, result = self._last_spectrum, self._last_result
+        if spectrum is None or result is None:
+            self._flash_status("No frame to fit yet.")
+            return
+        seeds = [p.pixel for p in result.peaks if abs(p.pixel - center_px) <= window]
+        if not seeds:
+            seeds = [int(round(center_px))]
+        n_lines = self._analysis.n_lines or len(seeds)
+        use_denoised = self._sa.fit_denoised and getattr(result, "denoised", None) is not None
+        data = list(result.denoised) if use_denoised else list(spectrum.intensities)
+        wavelengths = list(spectrum.wavelengths) if len(spectrum.wavelengths) else None
+        kwargs = self._sa.fit_kwargs()
+        from analysis.linefit import fit_lines
+
+        self._fit_context = (wavelengths, "denoised" if use_denoised else "raw")
+        self._start_worker(
+            "fit",
+            lambda progress, stop: fit_lines(data, seeds, n_lines=n_lines, wavelengths=wavelengths,
+                                             progress=progress, should_stop=stop, **kwargs),
+            f"Fitting {n_lines} line{'s' if n_lines != 1 else ''} near pixel {int(round(center_px))}…",
+        )
+
+    def _start_worker(self, kind: str, fn, message: str) -> None:
+        if self._worker is not None and self._worker.isRunning():
+            self._flash_status("A fit is already running — wait or cancel it.")
+            return
+        worker = TaskWorker(fn, self)
+        self._worker, self._worker_kind = worker, kind
+        worker.progress.connect(self._analysis.fit_progress)
+        worker.finished_ok.connect(self._on_worker_done)
+        worker.failed.connect(self._on_worker_failed)
+        self._analysis.fit_started()
+        self._flash_status(message, hold=60.0)
+        worker.start()
+
+    def _cancel_worker(self) -> None:
+        if self._worker is not None and self._worker.isRunning():
+            self._worker.cancel()
+
+    def _on_worker_done(self, value) -> None:
+        kind, worker = self._worker_kind, self._worker
+        cancelled = worker is not None and worker.cancelled
+        if kind == "fit":
+            if cancelled:
+                self._analysis.fit_finished(None, message="Fit cancelled.")
+                self._flash_status("Fit cancelled.")
+                return
+            wavelengths, source = self._fit_context
+            self._last_fit = (value, wavelengths, source)
+            self._view.show_fit(value, wavelengths)
+            self._analysis.fit_finished(value, source)
+            centers = ", ".join(
+                f"{ln.center_nm:.3f} nm" if ln.center_nm is not None else f"{ln.center_px:.2f} px"
+                for ln in value.lines)
+            self._flash_status(f"Fitted {len(value.lines)} line(s): {centers}", hold=6.0)
+            self.logger.info("Line fit (%s spectrum, seed %s): %s", source, value.seed, centers)
+        elif kind == "calibrate":
+            self._analysis.fit_finished(None, message="Line centers fitted for calibration.")
+            self._apply_calibration(value)
+        elif kind == "compare":
+            self._analysis.fit_finished(None, message="Centroid comparison done.")
+            self._last_comparison = value
+            self._show_comparison(value)
+
+    def _on_worker_failed(self, message: str) -> None:
+        self._analysis.fit_finished(None, message=f"Failed: {message}")
+        self._flash_status(f"Failed: {message}")
+        self.logger.error("Analysis task failed: %s", message)
+
+    def act_clear_fit(self) -> None:
+        self._last_fit = None
+        self._view.clear_fit()
+        self._analysis.clear_fit()
+
+    def act_compare_centroids(self) -> None:
+        session = self._cal_session
+        if session.count < 4:
+            self._flash_status(f"The comparison needs at least 4 picked lines — {session.count} picked.")
+            return
+        if self._last_spectrum is None:
+            self._flash_status("No frame yet to fit the picked lines on.")
+            return
+        intensities = list(self._last_spectrum.intensities)
+        kwargs = self._sa.fit_kwargs()
+        self._start_worker(
+            "compare",
+            lambda progress, stop: compare_centroid_methods(session, intensities, **kwargs),
+            "Comparing whole-pixel picks with fitted line centers…",
+        )
+
+    def _show_comparison(self, comp) -> None:
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Calibration: picks vs fitted line centers")
+        v = QtWidgets.QVBoxLayout(dlg)
+        headers = ["Known (nm)", "Pick (px)", "Fitted (px)", "Error, pick (nm)", "Error, fitted (nm)"]
+        table = QtWidgets.QTableWidget(len(comp.rows), len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        for r, row in enumerate(comp.rows):
+            values = [f"{row.wavelength:.3f}", f"{row.pick_px:.0f}", f"{row.fitted_px:.2f}",
+                      f"{row.residual_pick:+.3f}", f"{row.residual_fitted:+.3f}"]
+            for c, text in enumerate(values):
+                table.setItem(r, c, QtWidgets.QTableWidgetItem(text))
+        table.resizeColumnsToContents()
+        v.addWidget(table)
+        better = comp.improvement
+        verdict = ("" if better is None else
+                   f" — fitted centers are {abs(better) * 100:.0f}% "
+                   f"{'better' if better >= 0 else 'worse'}")
+        summary = QtWidgets.QLabel(
+            f"Leave-one-out RMS error: picks {comp.rms_pick:.3f} nm, "
+            f"fitted {comp.rms_fitted:.3f} nm{verdict}.\n"
+            "Each line's wavelength is predicted from a calibration fitted to the "
+            "other lines, so the errors measure real predictive accuracy."
+        )
+        summary.setWordWrap(True)
+        v.addWidget(summary)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dlg.reject)
+        v.addWidget(buttons)
+        dlg.resize(620, 360)
+        self.logger.info("Centroid comparison: RMS picks %.4f nm, fitted %.4f nm",
+                         comp.rms_pick, comp.rms_fitted)
+        dlg.open()
+        self._comparison_dialog = dlg
 
     def _on_error(self, message: str) -> None:
         self.statusBar().showMessage(f"Capture stopped: {message}")
         self.logger.error("Capture error: %s", message)
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if self._worker is not None and self._worker.isRunning():
+            self._worker.cancel()
+            self._worker.wait(3000)
         if self._thread is not None:
             self._thread.stop()
             self._thread = None

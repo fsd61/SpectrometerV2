@@ -56,6 +56,30 @@ def apply_calibration(coefficients, width: int) -> list[float]:
     return [round(float(v), 6) for v in values]
 
 
+def leave_one_out_residuals(pixels: Sequence[float], wavelengths: Sequence[float]) -> list[float]:
+    """Prediction error at each calibration line when it is left out of the fit.
+
+    For each point, fit the calibration to all the others (same order rule as
+    :func:`fit_calibration`) and report predicted minus known wavelength, nm.
+    In-sample residuals flatter a fit -- with 3 points a 2nd-order polynomial
+    passes through them exactly -- so this is the honest measure of how well
+    line centers and calibration predict a wavelength. Needs at least 4 points.
+    """
+    pixels = [float(p) for p in pixels]
+    wavelengths = [float(w) for w in wavelengths]
+    if len(pixels) != len(wavelengths):
+        raise CalibrationError("calibration points mismatch")
+    if len(pixels) < 4:
+        raise CalibrationError("leave-one-out residuals need at least 4 points")
+    residuals = []
+    for i in range(len(pixels)):
+        rest_p = pixels[:i] + pixels[i + 1:]
+        rest_w = wavelengths[:i] + wavelengths[i + 1:]
+        coefficients, _order = fit_calibration(rest_p, rest_w)
+        residuals.append(float(np.polyval(coefficients, pixels[i]) - wavelengths[i]))
+    return residuals
+
+
 def calibrate(pixels, wavelengths, width: int) -> CalibrationResult:
     """Fit and evaluate a wavelength calibration over a sensor of ``width`` px."""
     coefficients, order = fit_calibration(pixels, wavelengths)

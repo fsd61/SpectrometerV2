@@ -51,9 +51,11 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "str", "auto",
             "Camera source. 'auto' picks the CSI (Pi ribbon) camera on a "
             "Raspberry Pi, otherwise a USB camera; 'csi' = Pi ribbon camera; "
-            "'usb' = USB/webcam; 'synthetic' = simulated data (clearly labelled). "
-            "('picamera2' is accepted as an alias for 'csi'.)",
-            choices=["auto", "usb", "csi", "picamera2", "synthetic"],
+            "'usb' = USB/webcam; 'synthetic' = simulated spectra (clearly labelled); "
+            "'synthetic-camera' = a simulated OV9281 producing noisy 1280x800 "
+            "frames, for trying the extraction band and line fitting without "
+            "hardware. ('picamera2' is accepted as an alias for 'csi'.)",
+            choices=["auto", "usb", "csi", "picamera2", "synthetic", "synthetic-camera"],
         ),
         "on_missing": Field(
             "str", "prompt",
@@ -114,8 +116,9 @@ SCHEMA: dict[str, dict[str, Field]] = {
     # overrides work — the override parser splits section/key on the first dot.
     "wavelet": {
         "wavelet": Field(
-            "str", "db4",
-            "PyWavelets wavelet family for the decomposition view.",
+            "str", "sym5",
+            "PyWavelets wavelet family for decomposition and denoising. sym5 and "
+            "coif3 are nearly symmetric, so they do not pull line centers.",
             choices=["db4", "db6", "sym5", "coif3"],
         ),
         "level": Field(
@@ -123,6 +126,29 @@ SCHEMA: dict[str, dict[str, Field]] = {
             "Decomposition depth. Clamped at compute time to the maximum the "
             "sample count allows (see the effective-level readout).",
             min=1, max=12,
+        ),
+        "denoise": Field(
+            "bool", False,
+            "Start with wavelet denoising on. It feeds smoothing and peak "
+            "detection only; FWHM and SNR are always measured on the raw spectrum.",
+        ),
+        "threshold_mode": Field(
+            "str", "hard",
+            "'hard' keeps surviving coefficients unchanged (preserves line height); "
+            "'soft' shrinks them (smoother, but lowers and can shift dim lines).",
+            choices=["hard", "soft"],
+        ),
+        "threshold_scale": Field(
+            "float", 0.6,
+            "Multiplier on the universal threshold sigma*sqrt(2 ln N). 1.0 is the "
+            "textbook value; 0.6 removes less noise but keeps dim lines intact.",
+            min=0.0, max=5.0,
+        ),
+        "shifts": Field(
+            "int", 8,
+            "Cycle-spinning shifts averaged (1 = plain transform). More shifts "
+            "remove the dependence on where a line falls on the wavelet grid.",
+            min=1, max=32,
         ),
     },
     "annealing": {

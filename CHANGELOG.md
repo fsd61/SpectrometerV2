@@ -4,6 +4,44 @@ All notable changes to **SpectrometerV2** are recorded here, one entry per
 development step. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
+## [2.2.0] — 2026-10-24
+
+Analysis controls in the GUI: the extraction band, wavelet denoising,
+simulated-annealing line fitting, and sub-pixel calibration, each measured
+against known answers.
+
+- **Analysis panel** (a tab beside Controls). Extraction: slice height and float
+  precision, applied live and validated against the frame. Wavelet denoising
+  (key `w`): family, level, hard/soft threshold and scale, raw-spectrum overlay,
+  and a removed-vs-noise readout. Line fitting (key `f`): click a line to fit
+  1-8 lines around it in a background thread, with progress, cancel, a locked
+  and recorded seed, the fit drawn over the spectrum, and a results table.
+  Calibration check: use fitted line centers, and compare centroid methods.
+  The 13 original keys are unchanged.
+- **Wavelet denoising** (`analysis.transforms.wavelet_denoise`): cycle-spun
+  thresholding. Defaults (sym5, hard, 0.6x universal) were chosen by
+  measurement: universal soft thresholding left a dim line at 43% of its
+  height; the defaults keep 93% while cutting baseline noise 2.5x. Denoising
+  feeds smoothing and peak detection only; FWHM and SNR are measured on the
+  raw spectrum (`analyze(..., measure_on=...)`), and the raw spectrum is what
+  is saved.
+- **Line fitting** (`analysis.linefit`): simulated annealing to find the
+  lines, a Levenberg-Marquardt polish to pin their centers, and a polish from
+  the seeds as a safeguard, keeping the lowest residual and reporting which
+  path won. On an argon-like doublet 4.4 px apart: 0.07 px mean center error;
+  recovered 16/20 from a start 4 px off, against 1/20 for the polish alone.
+- **Sub-pixel calibration**: `calibration.leave_one_out_residuals`, fitted
+  pick centers (doublet halves fitted together), and caldata files with
+  fractional pixels when needed (whole-pixel files unchanged). Simulated,
+  fitted centers cut the leave-one-out error 38% at 3 rows and 97% at 301.
+- **`synthetic-camera` backend**: a simulated OV9281 (1280x800, per-pixel
+  noise, 401-row slit image, argon-like doublet) for trying all of the above
+  without hardware. The simulated camera also renders untilted frames ~3x faster.
+- `[wavelet]` gains `denoise`, `threshold_mode`, `threshold_scale`, `shifts`;
+  its default family is now `sym5` (near-symmetric, so it does not pull line
+  centers).
+- 52 new tests (401 in all), including offscreen GUI tests of the panel.
+
 ## [2.1.0] — 2026-10-23
 
 Adjustable extraction band ("vertical slicing"): average the whole slit image

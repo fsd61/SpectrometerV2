@@ -1,7 +1,8 @@
 """Camera adapter factory (Migration Plan Phase 5).
 
 Selects an adapter by backend name so callers depend on the contract, not a
-specific camera API. Backends: ``usb``, ``picamera2``, ``synthetic``, ``auto``.
+specific camera API. Backends: ``usb``, ``picamera2``, ``synthetic``,
+``synthetic-camera`` (a simulated OV9281 with realistic noise), ``auto``.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from typing import Any, Mapping
 
 from errors import CameraError
 from .base import CameraAdapter
-from .synthetic_camera import SyntheticCameraAdapter
+from .synthetic_camera import SyntheticCameraAdapter, ov9281_demo_camera
 from .usb import UsbCameraAdapter
 from .picamera2 import Picamera2Adapter
 
@@ -19,6 +20,10 @@ def create_camera(backend: str = "usb", **kwargs: Any) -> CameraAdapter:
     backend = (backend or "usb").lower()
     if backend == "synthetic":
         return SyntheticCameraAdapter(**kwargs)
+    if backend == "synthetic-camera":
+        # Fixed OV9281 geometry; the configured width/height describe the real
+        # camera and are deliberately not applied to the model.
+        return ov9281_demo_camera(seed=int(kwargs.get("seed", 0)))
     if backend == "usb":
         return UsbCameraAdapter(**kwargs)
     if backend in ("csi", "picamera2"):   # 'picamera2' is a silent alias for 'csi'

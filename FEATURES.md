@@ -4,7 +4,7 @@
 `Original_Pyspectrometer2/` at tag `baseline-v1.0` — 1,384 lines across three
 files, no tests, no configuration, no logging.
 
-**Current:** 6,834 lines of application code, 3,837 lines of tests, 349 passing
+**Current:** 8,382 lines of application code, 4,377 lines of tests, 401 passing
 tests.
 
 This document lists what is *new*. The scientific behavior of the baseline is
@@ -93,6 +93,13 @@ The baseline drew two OpenCV windows with single-key bindings. Added:
   the baseline's auto-scaling could not.
 - **Synthetic signal dock** — live editable peak table and seed control, clearly
   labelled as simulated.
+- **Analysis panel** — live extraction band (slice height, float precision);
+  wavelet denoising with family, level, threshold mode and scale, a raw-spectrum
+  overlay and a removed-vs-noise readout; click-to-fit line fitting by simulated
+  annealing in a background thread, with cancel, a fixed and recorded seed, the
+  fitted lines drawn over the spectrum and a results table; and a calibration
+  check comparing whole-pixel picks with fitted line centers. New keys `w`
+  (denoise) and `f` (fit); the 13 original keys are unchanged.
 - The GUI is optional and dependency-gated; the application runs fully headless
   without it.
 
@@ -115,10 +122,24 @@ graticule, wavelength→RGB. All preserved. Added:
   tilted slit image broadens lines as the band grows
   (`scripts/measure_slice_height.py`).
 
+- **Wavelet denoising** (`transforms.wavelet_denoise`) — cycle-spun wavelet
+  thresholding as a switchable stage ahead of smoothing and peak detection. It
+  never replaces the raw spectrum, and FWHM/SNR are always measured on raw data
+  (`analyze(..., measure_on=raw)`), because a denoised trace has artificially
+  low noise. Defaults (hard, 0.6x universal) keep 93% of a dim line's height
+  where the textbook universal soft threshold keeps 43%.
+- **Overlapping-line fitting** (`linefit.py`) — simulated annealing to find the
+  lines plus a Levenberg-Marquardt polish to pin their centers, on a window
+  with a local baseline. Splits a doublet one line-width apart to ~0.07 px.
+- **Sub-pixel calibration** — calibrations from fitted line centers, a
+  leave-one-out comparison against whole-pixel picks
+  (`calibration.leave_one_out_residuals`), and caldata files that carry
+  fractional pixels when needed (whole-pixel files are unchanged). Simulated,
+  fitted centers cut the leave-one-out error 38% at 3 rows and 97% at 301.
+
 The FFT, wavelet and annealing functions existed in the `Wtx+SA` patch superset
 (`Docs/reference/`) but were never part of the shipped baseline. They are now
-first-class, dependency-gated, and tested, with their settings in the config;
-GUI controls for them are not built yet.
+first-class, dependency-gated, tested, and controlled from the GUI.
 
 ## 8. Synthetic data
 
@@ -131,7 +152,10 @@ Entirely new — the baseline had no simulation capability at all.
 - **Synthetic camera adapter** — fabricates *frames* that flow through the real
   grayscale and row-extraction path, so the pixel pipeline is exercised too.
   Optional sensor realism — independent per-pixel noise, a slit image of finite
-  height, and slit tilt — for measuring extraction choices honestly.
+  height, and slit tilt — for measuring extraction choices honestly. The
+  `synthetic-camera` backend runs the GUI on a simulated OV9281 (1280x800, noisy,
+  with an argon-like doublet) so the extraction band and line fitting can be
+  tried without hardware.
 - **Time-varying stream** with drift, rendered as a waterfall PNG.
 - These are two distinct provenance identities — `synthetic-generator` versus
   `synthetic-camera` — recorded separately, because a synthesized spectrum and a
@@ -169,7 +193,7 @@ directory, with no metadata. Added:
 
 Entirely new — the baseline had no tests.
 
-- **349 tests** across unit, integration, regression and platform suites.
+- **401 tests** across unit, integration, regression and platform suites.
 - **Golden regression tests** pin the baseline's exact numerical output and
   prove the extracted modules equivalent, so the migration is verifiable rather
   than asserted.
@@ -211,5 +235,5 @@ re-implementation around it, not a replacement of it.
   position only.
 - Hardware test suite (`tests/hardware/`) is empty; hardware verification is
   manual.
-- The full suite has been run on Linux/Python 3.10; Windows/Python 3.14
-  confirmation is outstanding.
+- The full suite has been confirmed on Linux/Python 3.10 and
+  Windows/Python 3.14 only.

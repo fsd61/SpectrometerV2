@@ -80,7 +80,7 @@ def select_camera(config, logger: logging.Logger, *, isatty: Optional[bool] = No
     if backend != "auto":
         camera = create_camera_from_config(section)
         camera.initialize()  # explicit choice: any failure propagates as an error
-        return camera, backend == "synthetic"
+        return camera, backend.startswith("synthetic")
 
     camera = _try_real_camera(section, logger)
     if camera is not None:

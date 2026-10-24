@@ -36,6 +36,10 @@ class SpectralAnalysis:
     smoothed: List[float]
     peaks: List[Peak] = field(default_factory=list)
     noise: Optional[float] = None
+    # Set by the live engine when wavelet denoising fed the analysis: the
+    # denoised series (``smoothed`` is then derived from it, while the raw
+    # spectrum stays untouched in the Spectrum). None when denoising is off.
+    denoised: Optional[List[float]] = None
 
 
 def _dispersion_nm_per_px(wavelengths, i):
@@ -55,20 +59,29 @@ def analyze(
     peak_min_dist: int = 20,
     measure: bool = False,
     measure_window: int = 12,
+    measure_on: Optional[Sequence[float]] = None,
 ) -> SpectralAnalysis:
     """Smooth, detect peaks, and optionally assign wavelengths and measure shape.
 
     When ``measure`` is True, each peak also gets FWHM (Gaussian fit of the raw
     intensities, falling back to a half-max width) and an SNR estimate; FWHM in
     nm is added when a wavelength axis is supplied.
+
+    ``measure_on`` (same length) is the series FWHM and SNR are measured on;
+    it defaults to ``intensities``. Pass the raw spectrum when ``intensities``
+    has been denoised, so line widths and SNR are not flattered by the
+    denoising: a denoised trace has artificially low noise.
     """
     y = np.asarray(intensities, dtype=float)
+    y_meas = y if measure_on is None else np.asarray(measure_on, dtype=float)
+    if len(y_meas) != len(y):
+        raise ValueError("measure_on must be the same length as intensities")
     smoothed = savitzky_golay(y, savgol_window, savgol_order)
     indices = [int(i) for i in peak_indexes(smoothed, thres=peak_thres, min_dist=peak_min_dist)]
 
     have_wl = wavelengths is not None and len(wavelengths) >= len(smoothed)
-    noise = estimate_noise(y) if measure else None
-    baseline = float(np.median(y)) if measure else None
+    noise = estimate_noise(y_meas) if measure else None
+    baseline = float(np.median(y_meas)) if measure else None
 
     peaks: List[Peak] = []
     for i in indices:
@@ -79,14 +92,14 @@ def analyze(
         )
         if measure:
             try:
-                fit = gaussian_fit(y, i, window=measure_window, baseline=baseline)
+                fit = gaussian_fit(y_meas, i, window=measure_window, baseline=baseline)
                 peak.fwhm = fit.fwhm
             except (ValueError, np.linalg.LinAlgError):
                 try:
-                    peak.fwhm = half_max_fwhm(y, i, baseline=baseline)
+                    peak.fwhm = half_max_fwhm(y_meas, i, baseline=baseline)
                 except ValueError:
                     peak.fwhm = None
-            peak.snr = estimate_snr(y, i, baseline=baseline, noise=noise)
+            peak.snr = estimate_snr(y_meas, i, baseline=baseline, noise=noise)
             if peak.fwhm is not None and have_wl:
                 disp = _dispersion_nm_per_px(wavelengths, i)
                 if disp is not None:
