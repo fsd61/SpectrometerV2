@@ -172,6 +172,9 @@ Denoising cleans the display and peak detection. It does not make fitted line
 centers more precise: a fit to the raw data already uses all the information,
 so the line fit works on the raw spectrum unless you choose otherwise. Primer:
 [Docs/wavelet_transforms_primer.pdf](Docs/wavelet_transforms_primer.pdf).
+The papers behind both methods (Daubechies; Donoho & Johnstone; Coifman &
+Donoho; Srivastava, Dzikovski & Freed on wavelet denoising of spectra) are
+listed with links in [Docs/REFERENCES.md](Docs/REFERENCES.md).
 
 ## Design
 

@@ -65,3 +65,7 @@ Thumbs.db
 
 # Mount write-permission probe
 /.git-write-test
+
+# Publisher-copyrighted papers kept locally; linked from Docs/REFERENCES.md
+/Docs/cpam41-1988.pdf
+/Docs/nihms-1725221.pdf
