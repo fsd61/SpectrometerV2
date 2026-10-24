@@ -24,9 +24,9 @@ for far more signal-to-noise. Defaults are unchanged.
 - New `scripts/measure_slice_height.py` reproduces the SNR and line-width
   table under your own assumptions.
 - Config schema: integer keys can require odd values (`slice_height`).
-- README: what sets SpectrometerV2 apart, including the simulated annealing
-  line fitting (DiGennaro & Cowburn, J. Magn. Reson. 96, 1992) and wavelet
-  decomposition, and their current status.
+- README: what sets SpectrometerV2 apart, with a side-by-side comparison to
+  PySpectrometer2, the simulated annealing line fitting (DiGennaro & Cowburn,
+  J. Magn. Reson. 96, 1992) and wavelet decomposition, and their current status.
 - 21 new tests (349 in all), including ground truth that noise falls as
   1/sqrt(rows) and that a taller band does not narrow lines.
 

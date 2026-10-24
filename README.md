@@ -53,6 +53,20 @@ Raspberry Pi camera, and platform-specific setup.
 
 ## What sets it apart
 
+SpectrometerV2 keeps PySpectrometer2's scientific results exactly, pinned by
+regression tests, and builds a measurement instrument on top of them:
+
+|                                  | PySpectrometer2              | SpectrometerV2 |
+|----------------------------------|------------------------------|----------------|
+| Rows of the slit image per sample | 3, rounded to whole counts  | Adjustable up to the whole slit image, fractional: about 11x the signal-to-noise in simulation ([below](#more-signal-from-the-same-frame)) |
+| Line shape                       | Peak position only           | Gaussian fit, FWHM, and signal-to-noise for every line |
+| Overlapping lines                | Not handled                  | Simulated annealing global optimizer (DiGennaro & Cowburn, 1992) |
+| Signal decomposition             | None                         | Multi-level wavelet transforms and FFT |
+| Checking against known answers   | None                         | Built-in signal generator and simulated camera; 349 automated tests |
+| Calibration provenance           | None                         | Calibration fingerprint stored with every measurement; simulated data can never pass as real |
+| Data                             | CSV snapshots                | CSV, SQLite with full provenance, InfluxDB for Grafana |
+| Platforms                        | Raspberry Pi and Linux       | Raspberry Pi, Windows, and Linux |
+
 ### More signal from the same frame
 
 PySpectrometer2 builds each spectrum from 3 rows of the camera image, but the
