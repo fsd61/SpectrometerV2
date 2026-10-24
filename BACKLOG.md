@@ -63,6 +63,12 @@ split exists to avoid.
   them at roughly half height and blurs a doublet into one peak. Measurements
   are unaffected (FWHM/SNR and line fits use the raw data), but the window
   should scale with the line width, or be exposed as a control.
+- **Matched-filter peak detection** — measured with
+  `scripts/measure_analysis_gains.py`, smoothing with the known line shape
+  finds faint lines better than the 17-point Savitzky-Golay window, with or
+  without wavelet denoising (a line at SNR 3: 83% vs 63% at 0.01 false peaks
+  per 1000 px). Offer it as the detection trace, keeping the baseline's
+  smoothing as the default.
 - **Advanced analysis** — **done.** FFT and wavelet decomposition
   (`analysis/transforms.py`; wavelet gated behind the `[wavelet]` extra) and
   simulated-annealing line fitting (`analysis/annealing.py`, NumPy-only) are all

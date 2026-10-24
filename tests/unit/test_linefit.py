@@ -120,3 +120,15 @@ def test_refine_centers_fits_a_doublet_jointly_and_keeps_pick_order():
     assert centers[0] == pytest.approx(C2, abs=0.15)
     assert centers[1] == pytest.approx(300.4, abs=0.1)
     assert centers[2] == pytest.approx(C1, abs=0.15)
+
+
+@pytest.mark.parametrize("sep", [8.0, 12.0, 16.0])
+def test_two_lines_from_one_click_when_they_are_not_blended(sep):
+    """Lines a few widths apart that peak detection labelled once (its minimum
+    peak distance is 20 px): one click with 2 lines asked for still finds both."""
+    c2 = C1 + sep
+    y = 10 + 100 * np.exp(-0.5 * ((X - C1) / SIGMA) ** 2) + 70 * np.exp(-0.5 * ((X - c2) / SIGMA) ** 2)
+    y = y + np.random.default_rng(4).normal(0, 2.0, X.size)
+    fit = fit_lines(y, [700], n_lines=2, random_seed=0)
+    assert fit.lines[0].center_px == pytest.approx(C1, abs=0.2)
+    assert fit.lines[1].center_px == pytest.approx(c2, abs=0.2)

@@ -28,7 +28,7 @@ Windows, and Linux. A ground-up modernization of Les Wright's PySpectrometer2.
   (for Grafana).
 - **Same keys as PySpectrometer2**, and its scientific results are preserved,
   pinned by golden regression tests.
-- **401 automated tests.** Windows, Linux, and Raspberry Pi are all first-class.
+- **404 automated tests.** Windows, Linux, and Raspberry Pi are all first-class.
 
 ## Try it in two minutes, no hardware needed
 
@@ -69,10 +69,11 @@ regression tests, and builds a measurement instrument on top of them:
 |----------------------------------|------------------------------|----------------|
 | Rows of the slit image per sample | 3, rounded to whole counts  | Adjustable up to the whole slit image, fractional: about 11x the signal-to-noise in simulation ([below](#more-signal-from-the-same-frame)) |
 | Line shape                       | Peak position only           | Gaussian fit, FWHM, and signal-to-noise for every line |
-| Overlapping lines                | Seen as one line             | Split by simulated annealing (DiGennaro & Cowburn, 1992) with a least-squares polish, from the GUI ([below](#simulated-annealing-line-fitting)) |
+| Line position                    | Whole pixels: about 0.3 px error however strong the line | Fitted: 0.015 px at SNR 100, at the theoretical limit, in simulation ([below](#how-much-the-fitting-gains)) |
+| Overlapping lines                | Split only 1.25 line-widths apart or more (best settings; 5 at its defaults) | Split down to 0.75 line-widths apart by simulated annealing (DiGennaro & Cowburn, 1992) with a least-squares polish, from the GUI ([below](#simulated-annealing-line-fitting)) |
 | Calibration line centers         | Whole pixels                 | Sub-pixel fitted centers: 38-97% lower calibration error in simulation ([below](#sub-pixel-calibration)) |
-| Noise handling                   | Smoothing only               | Switchable wavelet denoising, with line widths and SNR always measured on the raw data ([below](#wavelet-denoising)) |
-| Checking against known answers   | None                         | Built-in signal generator and simulated camera; 401 automated tests |
+| Noise handling                   | Smoothing only               | Switchable wavelet denoising for a cleaner trace, with line widths and SNR always measured on the raw data ([below](#wavelet-denoising)) |
+| Checking against known answers   | None                         | Built-in signal generator and simulated camera; 404 automated tests |
 | Calibration provenance           | None                         | Calibration fingerprint stored with every measurement; simulated data can never pass as real |
 | Data                             | CSV snapshots                | CSV, SQLite with full provenance, InfluxDB for Grafana |
 | Platforms                        | Raspberry Pi and Linux       | Raspberry Pi, Windows, and Linux |
@@ -131,6 +132,36 @@ The random seed is shown, locked by default, and recorded with every fit, and
 the panel reports which path produced the best fit. Primer:
 [Docs/simulated_annealing_primer.pdf](Docs/simulated_annealing_primer.pdf).
 
+### How much the fitting gains
+
+Measured against PySpectrometer2's own pipeline, on simulated 4-px-wide lines
+whose true positions are known. `python scripts/measure_analysis_gains.py`
+reproduces every number here.
+
+Line position, RMS error (200 lines at each SNR):
+
+| SNR | PySpectrometer2 peak pick | SA fit | Best possible (Cramér–Rao bound) |
+|----:|--------------------------:|-------:|---------------------------------:|
+| 5   | 0.90 px                   | 0.28 px  | 0.28 px  |
+| 20  | 0.41 px                   | 0.064 px | 0.069 px |
+| 100 | 0.31 px                   | 0.015 px | 0.014 px |
+| 300 | 0.30 px                   | 0.005 px | 0.005 px |
+
+PySpectrometer2 reports whole pixels, so its error stops near 0.3 px however
+strong the line. The fit keeps improving with the signal and matches the
+theoretical limit from SNR 5 up.
+
+Closest pair of lines (heights 100 : 70) split in at least 90% of trials:
+
+|                                         | SNR 20           | SNR 100           |
+|-----------------------------------------|-----------------:|------------------:|
+| PySpectrometer2, default settings       | 5 line-widths (its 20 px minimum peak spacing) | 5 line-widths |
+| PySpectrometer2, best of its settings   | 1.25 line-widths | 1.25 line-widths  |
+| SA fit, asked for 2 lines               | 1.0 line-widths  | 0.75 line-widths  |
+
+The Ar I 810 / 811 nm pair is 1.09 line-widths apart on a 4-px-wide line: just
+past what PySpectrometer2 can split, and inside what the fit splits reliably.
+
 ### Sub-pixel calibration
 
 PySpectrometer2 calibrates from whole-pixel positions, so every reference line
@@ -168,9 +199,17 @@ The defaults are deliberately gentler than the textbook threshold. Simulated,
 | Universal, soft (textbook) | 3.8x | 43% |
 | 0.6x universal, hard (default) | 2.5x | 93% |
 
-Denoising cleans the display and peak detection. It does not make fitted line
-centers more precise: a fit to the raw data already uses all the information,
-so the line fit works on the raw spectrum unless you choose otherwise. Primer:
+Measured, what it gives is a cleaner trace, not better results. It does not
+make fitted line centers more precise: a fit to the raw data already uses all
+the information, so the line fit works on the raw spectrum unless you choose
+otherwise. Nor does it find faint lines that PySpectrometer2's smoothing
+misses: with both held to the same rate of false peaks, the detection rate of
+a faint line changed by at most 4 percentage points, within the measurement's
+noise. A matched filter (smoothing with the known line shape) did better,
+finding a line at SNR 3 in 83% of trials against 63%, and is on the backlog.
+Wavelets are expected to pay off in removing a curved or drifting baseline,
+and in newer methods that identify signal in the wavelet domain for very weak
+lines (Srivastava et al., below). Primer:
 [Docs/wavelet_transforms_primer.pdf](Docs/wavelet_transforms_primer.pdf).
 The papers behind both methods (Daubechies; Donoho & Johnstone; Coifman &
 Donoho; Srivastava, Dzikovski & Freed on wavelet denoising of spectra) are
@@ -242,7 +281,7 @@ fitting, and the sub-pixel calibration check.
 
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
 behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
-401 tests, installable via `pip install -e .`.
+404 tests, installable via `pip install -e .`.
 
 ## Usage
 

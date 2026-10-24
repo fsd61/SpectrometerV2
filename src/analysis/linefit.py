@@ -139,16 +139,62 @@ def _polish(x, y, p0, bounds, max_iter: int = 100):
     return p, cost
 
 
+def _seed_width(y: np.ndarray, seeds: Sequence[float]) -> float:
+    """Half-max width (px) at the strongest seed."""
+    idx = int(max(seeds, key=lambda s: y[int(round(s))]))
+    try:
+        return float(half_max_fwhm(y, int(round(idx))))
+    except ValueError:
+        return 4.0
+
+
 def _initial_sigma(y: np.ndarray, seeds: Sequence[float], n_lines: int) -> float:
     """Rough per-line sigma: the half-max width at the strongest seed, shared
     between the lines a blend may contain."""
-    idx = int(max(seeds, key=lambda s: y[int(round(s))]))
-    try:
-        width = half_max_fwhm(y, int(round(idx)))
-    except ValueError:
-        width = 4.0
     groups = max(1, n_lines - len(seeds) + 1)
-    return float(np.clip(width / groups / FWHM_PER_SIGMA, 0.5, 10.0))
+    return float(np.clip(_seed_width(y, seeds) / groups / FWHM_PER_SIGMA, 0.5, 10.0))
+
+
+def _maxima_positions(y: np.ndarray, seeds: Sequence[float], n_lines: int,
+                      width: float) -> Optional[list]:
+    """Start positions from the local maxima near the seeds.
+
+    For lines asked for beyond the seeds that are *not* blended -- e.g. two
+    lines 10 px apart that peak detection labelled once because of its
+    minimum peak distance -- starting them one sigma either side of the seed
+    leaves the second line out of reach. Here the data are lightly smoothed,
+    local maxima within a few line widths of the seeds that stand clear of the
+    noise are taken strongest first, and any lines still missing are spread
+    around the strongest one. Returns None when no extra maximum is found.
+    """
+    n = len(y)
+    # Peak detection's default minimum distance is 20 px, so a second line can
+    # hide up to 20 px from the labelled one; search a little beyond that.
+    reach = max(24.0, 3.0 * width)
+    lo = max(1, int(math.floor(min(seeds) - reach)))
+    hi = min(n - 1, int(math.ceil(max(seeds) + reach)) + 1)
+    if hi - lo < 5:
+        return None
+    k = np.exp(-0.5 * (np.arange(-3, 4) / 1.0) ** 2)
+    sm = np.convolve(y, k / k.sum(), mode="same")
+    noise = float(np.median(np.abs(np.diff(y))) / 0.6745 / math.sqrt(2.0)) or 1e-12
+    seg = sm[lo:hi]
+    floor = float(np.median(seg))
+    cand = [i for i in range(lo + 1, hi - 1)
+            if sm[i] >= sm[i - 1] and sm[i] > sm[i + 1] and sm[i] - floor > 4.0 * noise]
+    cand.sort(key=lambda i: sm[i], reverse=True)
+    picked: list = []
+    for i in cand:
+        if all(abs(i - j) >= max(2.0, width / 2.0) for j in picked):
+            picked.append(i)
+        if len(picked) == n_lines:
+            break
+    if len(picked) <= len(seeds):
+        return None
+    sigma = width / FWHM_PER_SIGMA
+    while len(picked) < n_lines:              # still short: spread round the strongest
+        picked.append(picked[0] + sigma * (1 if len(picked) % 2 else -1))
+    return sorted(float(p) for p in picked)
 
 
 def _seed_positions(seeds: Sequence[float], n_lines: int, sigma: float) -> list:
@@ -221,11 +267,22 @@ def fit_lines(
         raise ValueError("n_lines must be at least 1")
 
     sigma0 = _initial_sigma(y_all, seeds_px, n_lines)
-    starts = _seed_positions(seeds_px, n_lines, sigma0)
+    # Start arrangements to try. The first assumes the extra lines hide in a
+    # blend around the seeds; when more lines are asked for than seeds, the
+    # local maxima nearby give a second arrangement, for lines that are
+    # separate but were labelled as one peak. The lowest residual wins.
+    start_sets = [(_seed_positions(seeds_px, n_lines, sigma0), sigma0)]
+    if n_lines > len(seeds_px):
+        width = _seed_width(y_all, seeds_px)
+        alt = _maxima_positions(y_all, seeds_px, n_lines, width)
+        if alt is not None and np.max(np.abs(np.array(alt) - np.array(start_sets[0][0]))) > 1.0:
+            start_sets.append((alt, float(np.clip(width / FWHM_PER_SIGMA, 0.5, 10.0))))
+    all_starts = [c for starts, _s in start_sets for c in starts]
 
     if window is None:
         margin = max(6, int(math.ceil(4 * sigma0 * FWHM_PER_SIGMA / 2)) + 4)
-        window = (int(math.floor(min(starts))) - margin, int(math.ceil(max(starts))) + margin + 1)
+        window = (int(math.floor(min(all_starts))) - margin,
+                  int(math.ceil(max(all_starts))) + margin + 1)
     lo, hi = max(0, int(window[0])), min(n, int(window[1]))
     if hi - lo < 3 * n_lines + 2:
         raise ValueError("fit window too small for the requested number of lines")
@@ -242,48 +299,61 @@ def fit_lines(
     y_norm = signal / scale
 
     reach = 1.0 + 6.0 * (1.0 - float(np.clip(bound_tightness, 0.0, 1.0)))
-    x0, bounds = [], []
-    for c in starts:
-        amp = float(np.clip(np.interp(c, x, y_norm), 0.05, 1.2))
-        x0 += [amp, float(c), sigma0]
-        bounds += [(0.0, 1.5), (max(lo, c - reach), min(hi - 1, c + reach)),
-                   (0.3, max(2.0, (hi - lo) / 4.0))]
-
     objective = sum_of_squares_objective(x, y_norm)
-    history: list = []
-    state = {"stopped_early": False}
 
-    def _callback(cycle, x_best, cost_best, T):
-        history.append(float(cost_best))
-        if progress is not None:
-            progress(cycle, max_cycles)
-        if should_stop is not None and should_stop():
-            return True
-        if cycle > quench_cycle and len(history) > stall_cycles:
-            past = history[-stall_cycles - 1]
-            if past <= 0 or (past - cost_best) / past < stall_rtol:
-                state["stopped_early"] = True
+    def _run(starts, sigma_start):
+        """Anneal (and polish) from one start arrangement."""
+        x0, bounds = [], []
+        for c in starts:
+            amp = float(np.clip(np.interp(c, x, y_norm), 0.05, 1.2))
+            x0 += [amp, float(c), sigma_start]
+            bounds += [(0.0, 1.5), (max(lo, c - reach), min(hi - 1, c + reach)),
+                       (0.3, max(2.0, (hi - lo) / 4.0))]
+        history: list = []
+        state = {"stopped_early": False}
+
+        def _callback(cycle, x_best, cost_best, T):
+            history.append(float(cost_best))
+            if progress is not None:
+                progress(cycle, max_cycles)
+            if should_stop is not None and should_stop():
                 return True
-        return False
+            if cycle > quench_cycle and len(history) > stall_cycles:
+                past = history[-stall_cycles - 1]
+                if past <= 0 or (past - cost_best) / past < stall_rtol:
+                    state["stopped_early"] = True
+                    return True
+            return False
 
-    res = simulated_annealing(
-        objective, x0, schedule=schedule, n_components=n_lines,
-        markov_factor=markov_factor, quench_cycle=quench_cycle, tol=tol,
-        max_cycles=max_cycles, step_size=step_size, bounds=bounds,
-        random_seed=random_seed, callback=_callback,
-    )
+        res = simulated_annealing(
+            objective, x0, schedule=schedule, n_components=n_lines,
+            markov_factor=markov_factor, quench_cycle=quench_cycle, tol=tol,
+            max_cycles=max_cycles, step_size=step_size, bounds=bounds,
+            random_seed=random_seed, callback=_callback,
+        )
+        # Candidates, kept by lowest mean squared residual: the annealing
+        # result, the annealing result polished, and a polish straight from the
+        # starts. The last guards against annealing settling in a wrong
+        # arrangement (seen with short chains on very high-SNR doublets);
+        # annealing in turn rescues starts the polish alone cannot (e.g. seeds
+        # several pixels off).
+        best, best_cost, method = np.asarray(res.x, dtype=float), float(res.cost), "annealing"
+        if polish:
+            for start, label in ((best, "annealing+polish"),
+                                 (np.asarray(x0, dtype=float), "polish from seeds")):
+                refined, cost = _polish(x, y_norm, start, bounds)
+                if cost / len(x) < best_cost:
+                    best, best_cost, method = refined, cost / len(x), label
+        return best, best_cost, method, res, state["stopped_early"]
 
-    # Candidates, kept by lowest mean squared residual: the annealing result,
-    # the annealing result polished, and a polish straight from the seeds. The
-    # last guards against annealing settling in a wrong arrangement (seen with
-    # short chains on very high-SNR doublets); annealing in turn rescues starts
-    # the polish alone cannot (e.g. seeds several pixels off).
-    best, best_cost, method = np.asarray(res.x, dtype=float), float(res.cost), "annealing"
-    if polish:
-        for start, label in ((best, "annealing+polish"), (np.asarray(x0, dtype=float), "polish from seeds")):
-            refined, cost = _polish(x, y_norm, start, bounds)
-            if cost / len(x) < best_cost:
-                best, best_cost, method = refined, cost / len(x), label
+    outcome = None
+    for starts, sigma_start in start_sets:
+        run = _run(starts, sigma_start)
+        if outcome is None or run[1] < outcome[1]:
+            outcome = run
+        if should_stop is not None and should_stop():
+            break
+    best, best_cost, method, res, stalled = outcome
     polished = method != "annealing"
     params = best.reshape(-1, 3)
     wl = np.asarray(wavelengths, dtype=float) if wavelengths is not None and len(wavelengths) >= n else None
@@ -303,7 +373,7 @@ def fit_lines(
         lines=lines, window=(lo, hi),
         baseline=(float(b0 - slope * (edge - 1) / 2.0), float(slope)),
         rms_residual=0.0, cycles=int(res.cycles),
-        stopped_early=bool(state["stopped_early"] or res.converged),
+        stopped_early=bool(stalled or res.converged),
         seed=random_seed, polished=polished, method=method,
         cost_history=list(res.history_cost),
     )

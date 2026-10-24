@@ -4,6 +4,24 @@ All notable changes to **SpectrometerV2** are recorded here, one entry per
 development step. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
+## [Unreleased]
+
+Measured what the analysis methods gain over PySpectrometer2, and fixed a gap
+the measurement found.
+
+- **`scripts/measure_analysis_gains.py`**: line position accuracy, doublet
+  resolution and faint-line detection against PySpectrometer2's own pipeline,
+  on simulated lines with known positions. The SA fit matches the Cramér–Rao
+  bound from SNR 5 up (0.015 px at SNR 100, against 0.31 px for a whole-pixel
+  peak pick) and splits lines 0.75-1.0 line-widths apart, against 1.25 for
+  PySpectrometer2 at its best settings. Wavelet denoising did not improve
+  faint-line detection at a matched false-peak rate; the README now says so.
+- **Fixed:** asking for more lines than were clicked failed when the lines were
+  separate rather than blended (e.g. 8-16 px apart, labelled as one peak
+  because of the 20 px minimum peak spacing): both lines started on top of the
+  click. The fit now also starts from the local maxima nearby and keeps the
+  lower residual. 3 new tests (404 in all).
+
 ## [2.2.0] — 2026-10-24
 
 Analysis controls in the GUI: the extraction band, wavelet denoising,

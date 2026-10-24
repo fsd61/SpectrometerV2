@@ -4,7 +4,7 @@
 `Original_Pyspectrometer2/` at tag `baseline-v1.0` — 1,384 lines across three
 files, no tests, no configuration, no logging.
 
-**Current:** 8,382 lines of application code, 4,377 lines of tests, 401 passing
+**Current:** 8,382 lines of application code, 4,377 lines of tests, 404 passing
 tests.
 
 This document lists what is *new*. The scientific behavior of the baseline is
@@ -193,7 +193,7 @@ directory, with no metadata. Added:
 
 Entirely new — the baseline had no tests.
 
-- **401 tests** across unit, integration, regression and platform suites.
+- **404 tests** across unit, integration, regression and platform suites.
 - **Golden regression tests** pin the baseline's exact numerical output and
   prove the extracted modules equivalent, so the migration is verifiable rather
   than asserted.
