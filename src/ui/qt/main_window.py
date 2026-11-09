@@ -38,6 +38,7 @@ from errors import CalibrationError
 from .analysis_panel import AnalysisDock
 from .controller import CaptureThread, TaskWorker
 from .controls import ControlDock
+from .reference_line_dialog import ReferenceLineDialog
 from .spectrum_view import SpectrumView
 from .synthetic_controls import SyntheticDock
 from .waterfall_view import WaterfallView
@@ -91,6 +92,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._last_peaks: list[int] = []      # peak pixel indices, for click-snap
         self._cal_session = CalibrationSession()
         self._calib_mode = False              # plot clicks add points when True
+        self._ref_species: str | None = None  # last element chosen in the pick dialog
         self._engine: LiveEngine | None = None
         self._actions: dict[str, QtGui.QAction] = {}
         self._status_hold_until = 0.0         # live counter yields to a flashed msg
@@ -373,14 +375,24 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         if not self._calib_mode:
             return
-        pixel = snap_pixel_to_peak(x, self._last_peaks)
-        wavelength, ok = QtWidgets.QInputDialog.getDouble(
-            self, "Calibration point",
-            f"Known wavelength (nm) at pixel {pixel}:",
-            546.0, 0.0, 3000.0, 3,
+        # On a calibrated plot x is in nm; convert before snapping to a peak pixel.
+        pixel = snap_pixel_to_peak(self._x_to_pixel(x), self._last_peaks)
+        wavelength, ok, species = ReferenceLineDialog.get_wavelength(
+            self, pixel, estimate_nm=self._wavelength_at(pixel),
+            species=self._ref_species,
         )
         if ok:
+            self._ref_species = species or self._ref_species
             self._add_calibration_pick(pixel, float(wavelength))
+
+    def _wavelength_at(self, pixel: int) -> float | None:
+        """The current calibration's wavelength at ``pixel``, or None if uncalibrated."""
+        spec = self._last_spectrum
+        if spec is None or len(spec.wavelengths) == 0:
+            return None
+        if 0 <= int(pixel) < len(spec.wavelengths):
+            return float(spec.wavelengths[int(pixel)])
+        return None
 
     def _add_calibration_pick(self, pixel: int, wavelength: float) -> None:
         """Record one (pixel, wavelength) pick. Split out so tests can drive it

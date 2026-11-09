@@ -22,6 +22,25 @@ the measurement found.
   click. The fit now also starts from the local maxima nearby and keeps the
   lower residual. 3 new tests (404 in all).
 
+### NIST reference lines, step 1: calibration pick list
+
+- **`reference` package + `src/reference/nist/*.csv`**: emission line lists
+  from the NIST Atomic Spectra Database for Ar I, Hg I, Ne I, Na I, Kr I, Xe I
+  and He I, 500-1100 nm, air wavelengths (Ritz when given, else observed). Each
+  file records its source, retrieval date and the exact query. The application
+  only reads these files; it never contacts NIST at run time.
+- **`scripts/fetch_nist_lines.py`**: refreshes or adds line lists from ASD.
+  Run by hand, review the diff, commit.
+- **Calibration point dialog**: clicking a line in pick mode now offers a list
+  of reference lines (element chooser, argon first) instead of a blank number
+  box. Strongest lines first; once calibrated, the lines nearest the clicked
+  pixel come first with their distance. A picked line keeps NIST's full
+  precision; typing a value still works.
+- **Fixed:** in pick mode on an already calibrated plot, the click position
+  (in nm) was used as a pixel index, so recalibrating picked the wrong pixel.
+  It is now converted to a pixel first, as line fitting already did.
+  11 new tests (415 in all).
+
 ## [2.2.0] — 2026-10-24
 
 Analysis controls in the GUI: the extraction band, wavelet denoising,

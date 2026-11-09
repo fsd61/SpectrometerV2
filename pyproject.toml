@@ -36,6 +36,10 @@ py-modules = ["errors", "logging_setup"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# NIST reference line lists read at run time by reference.lines.
+[tool.setuptools.package-data]
+reference = ["nist/*.csv"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

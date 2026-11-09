@@ -88,12 +88,12 @@ def test_plot_click_gated_by_pick_mode(window):
 
 
 def test_click_to_calibrate_end_to_end(window, monkeypatch):
-    from PySide6 import QtWidgets
+    from ui.qt.reference_line_dialog import ReferenceLineDialog
 
     values = iter([405.0, 546.0, 611.0])
     monkeypatch.setattr(
-        QtWidgets.QInputDialog, "getDouble",
-        staticmethod(lambda *a, **k: (next(values), True)),
+        ReferenceLineDialog, "get_wavelength",
+        classmethod(lambda cls, *a, **k: (next(values), True, "Hg I")),
     )
     window._pick_action.setChecked(True)         # enter pick mode
     window._last_peaks = [100, 300, 500]
@@ -108,6 +108,58 @@ def test_click_to_calibrate_end_to_end(window, monkeypatch):
     window.act_calibrate()
     assert window._engine.calibration is not None
     assert "Calibrated" in window.statusBar().currentMessage()
+    assert window._ref_species == "Hg I"         # remembered for the next click
+
+
+def test_pick_on_calibrated_axis_uses_pixels(window, monkeypatch):
+    """On a calibrated plot the click x is in nm: it must be converted to a
+    pixel before snapping, and the dialog gets that pixel's wavelength."""
+    from processing.spectrum import Spectrum
+    from ui.qt.reference_line_dialog import ReferenceLineDialog
+
+    seen = {}
+
+    def fake(cls, parent, pixel, estimate_nm=None, species=None):
+        seen.update(pixel=pixel, estimate=estimate_nm)
+        return 811.531, True, "Ar I"
+
+    monkeypatch.setattr(ReferenceLineDialog, "get_wavelength", classmethod(fake))
+    wl = [600.0 + 0.266 * i for i in range(1280)]
+    window._last_spectrum = Spectrum(wavelengths=wl, intensities=[0.0] * 1280)
+    window._last_peaks = [793]
+    window._pick_action.setChecked(True)
+    window._on_plot_click(wl[790])               # near-miss click, in nm
+    assert seen["pixel"] == 793                  # snapped in pixel space
+    assert abs(seen["estimate"] - wl[793]) < 1e-9
+    assert window._cal_session.pixels() == [793]
+
+
+def test_reference_line_dialog_lists_argon(qtbot):
+    from ui.qt.reference_line_dialog import ReferenceLineDialog
+
+    dialog = ReferenceLineDialog(700, species="Ar I")
+    qtbot.addWidget(dialog)
+    assert dialog.species() == "Ar I"
+    assert dialog._list.count() > 20
+    # Uncalibrated: strongest first, and selecting fills the value box.
+    assert "811.531" in dialog._list.item(0).text() or "912.297" in dialog._list.item(0).text()
+    from PySide6 import QtCore
+
+    dialog._list.setCurrentRow(3)
+    expected = dialog._list.item(3).data(QtCore.Qt.ItemDataRole.UserRole)
+    assert dialog.wavelength() == expected       # full NIST precision, not the rounded box
+    dialog._value.setValue(700.25)               # typing still wins
+    assert dialog.wavelength() == pytest.approx(700.25)
+
+
+def test_reference_line_dialog_nearest_first_when_calibrated(qtbot):
+    from ui.qt.reference_line_dialog import ReferenceLineDialog
+
+    dialog = ReferenceLineDialog(793, estimate_nm=811.2, species="Ar I")
+    qtbot.addWidget(dialog)
+    assert "811.531" in dialog._list.item(0).text()
+    assert "Δ +0.33 nm" in dialog._list.item(0).text()
+    assert abs(dialog.wavelength() - 811.53109) < 1e-4
 
 
 def test_calibrate_without_enough_points_reports(window):
