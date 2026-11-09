@@ -90,3 +90,76 @@ def test_shipped_sodium_d_and_mercury_yellow():
     hg = [ln.wavelength_nm for ln in load_lines("Hg I")]
     assert any(abs(w - 576.960) < 0.002 for w in hg)
     assert any(abs(w - 579.066) < 0.002 for w in hg)
+
+
+# --------------------------------------------------------------------- #
+# The ASD version stamp
+# --------------------------------------------------------------------- #
+def _fetch_script():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "scripts" / "fetch_nist_lines.py"
+    spec = importlib.util.spec_from_file_location("fetch_nist_lines", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_parse_asd_version():
+    script = _fetch_script()
+    page = ('Reader,&nbsp;J. and <a href="#Team">NIST ASD Team</a> (2024).\n'
+            '  <i>NIST Atomic Spectra Database</i> (version&nbsp;5.12),\n'
+            '  ... <b>Version&nbsp;5.11</b> ... CODATA (Web Version 9.0)')
+    assert script.parse_asd_version(page) == "5.12"
+    assert script.parse_asd_version("<html>nothing here</html>") == "unknown"
+
+
+def test_shipped_files_record_asd_version():
+    for species in available_species():
+        header = read_header(DATA_DIR / (species.replace(" ", "_") + ".csv"))
+        assert header.get("asd_version", "unknown") != "unknown", species
+
+
+# --------------------------------------------------------------------- #
+# Line identification
+# --------------------------------------------------------------------- #
+def test_refine_peak_finds_subpixel_center():
+    import numpy as np
+
+    from reference import refine_peak
+
+    x = np.arange(40, dtype=float)
+    y = 100.0 * np.exp(-0.5 * ((x - 20.3) / 1.7) ** 2)
+    assert refine_peak(y, 20) == pytest.approx(20.3, abs=0.05)
+    assert refine_peak(y, 0) == 0.0                     # edge: unchanged
+    assert refine_peak([1.0, 1.0, 1.0], 1) == 1.0       # flat: unchanged
+
+
+def test_wavelength_at_interpolates():
+    from reference import wavelength_at
+
+    wl = [600.0 + 0.266 * i for i in range(1280)]
+    assert wavelength_at(wl, 793.5) == pytest.approx(600.0 + 0.266 * 793.5)
+
+
+def test_identify_argon_doublet():
+    from reference import identify
+
+    found = identify(811.40, ["Ar I", "Ne I"], tolerance_nm=1.5)
+    assert found[0].species == "Ar I"
+    assert found[0].wavelength_nm == pytest.approx(811.53109)
+    assert found[0].delta_nm == pytest.approx(0.13109, abs=1e-6)
+    assert found[0].strength == "very strong"
+    assert any(c.wavelength_nm == pytest.approx(810.36921) for c in found)
+    deltas = [abs(c.delta_nm) for c in found]
+    assert deltas == sorted(deltas)                      # nearest first
+    assert all(d <= 1.5 for d in deltas)
+
+
+def test_identify_edge_cases(tmp_path):
+    from reference import identify
+
+    assert identify(811.4, [], 1.0) == []                # nothing ticked
+    assert identify(811.4, ["Zz I"], 1.0) == []          # unknown species skipped
+    assert identify(811.4, ["Ar I"], 0.01) == []         # nothing that close

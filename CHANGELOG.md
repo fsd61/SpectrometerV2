@@ -41,6 +41,23 @@ the measurement found.
   It is now converted to a pixel first, as line fitting already did.
   11 new tests (415 in all).
 
+### NIST reference lines, step 2: identify lines
+
+- **Identify lines mode** (Analysis menu or panel, key `n`): click a peak on a
+  calibrated plot and the Analysis panel lists the reference lines within a
+  set distance (default ±1 nm), nearest first, with element, wavelength,
+  Δ (reference minus measured) and strength; the nearest also shows in the
+  status bar. Element checkboxes choose what to search (Ar, Hg, Ne and Na by
+  default); changing them or the distance re-lists the last peak at once.
+  The peak's position is refined to sub-pixel (parabola through the top three
+  samples) before it is read off the calibration. Identify, fit and
+  calibration-pick modes are mutually exclusive.
+- **`reference.identify`**: the Qt-free core (`identify`, `refine_peak`,
+  `wavelength_at`).
+- **ASD version stamp**: the fetch script records the database version (now
+  5.12) in each line file's header. Refetching changed no line data.
+  10 new tests (425 in all).
+
 ## [2.2.0] — 2026-10-24
 
 Analysis controls in the GUI: the extraction band, wavelet denoising,

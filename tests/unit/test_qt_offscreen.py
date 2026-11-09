@@ -175,3 +175,61 @@ def test_spectrum_view_emits_and_updates(qtbot):
     view.plotClicked.connect(received.append)
     view.plotClicked.emit(123.0)                 # signal is wired and typed
     assert received == [123.0]
+
+
+def _calibrated_argon_frame(window):
+    """A calibrated frame with an Ar 811.531 nm line, as the window last saw it."""
+    import numpy as np
+
+    from processing.spectrum import Spectrum
+
+    wl = [600.0 + 0.266 * i for i in range(1280)]
+    center = (811.531 - 600.0) / 0.266                   # 795.23 px
+    x = np.arange(1280, dtype=float)
+    y = 5.0 + 900.0 * np.exp(-0.5 * ((x - center) / 1.7) ** 2)
+    window._last_spectrum = Spectrum(wavelengths=wl, intensities=list(y))
+    window._last_peaks = [795]
+    return wl, center
+
+
+def test_identify_mode_lists_argon(window):
+    wl, center = _calibrated_argon_frame(window)
+    window._extra_actions["n"].setChecked(True)          # key n
+    assert window._identify_mode and window._analysis._identify_btn.isChecked()
+    window._on_plot_click(wl[797])                       # near miss, in nm
+    measured, position = window._last_identified
+    assert position == pytest.approx(center, abs=0.1)
+    assert measured == pytest.approx(811.531, abs=0.03)
+    table = window._analysis._id_table
+    assert table.rowCount() >= 1
+    assert table.item(0, 0).text() == "Ar I"
+    assert table.item(0, 1).text() == "811.531 nm"
+    assert "Ar I 811.531" in window.statusBar().currentMessage()
+
+
+def test_identify_follows_element_choice(window):
+    wl, _ = _calibrated_argon_frame(window)
+    window._set_identify_mode(True)
+    window._on_plot_click(wl[795])
+    window._analysis._species_boxes["Ar I"].setChecked(False)   # re-runs at once
+    texts = [window._analysis._id_table.item(r, 0).text()
+             for r in range(window._analysis._id_table.rowCount())]
+    assert "Ar I" not in texts
+
+
+def test_identify_needs_calibration(window):
+    window._set_identify_mode(True)
+    window._on_plot_click(300.0)
+    assert "calibrated" in window.statusBar().currentMessage()
+    assert window._last_identified is None
+
+
+def test_click_modes_are_exclusive(window):
+    window._set_identify_mode(True)
+    window._set_fit_mode(True)
+    assert window._fit_mode and not window._identify_mode
+    assert not window._extra_actions["n"].isChecked()
+    window._set_identify_mode(True)
+    assert window._identify_mode and not window._fit_mode
+    window._pick_action.setChecked(True)
+    assert window._calib_mode and not window._identify_mode

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -66,6 +67,30 @@ def fetch(url: str, timeout: float = 60.0) -> str:
         return response.read().decode("utf-8", errors="replace")
 
 
+VERSION_URL = "https://physics.nist.gov/PhysRefData/ASD/Html/verhist.shtml"
+
+# The version-history page opens with NIST's suggested citation,
+# "... NIST Atomic Spectra Database (version 5.12) ...".
+_VERSION = re.compile(
+    r"Atomic\s+Spectra\s+Database(?:\s|<[^>]*>)*\(\s*version(?:\s|&nbsp;)+(\d+(?:\.\d+)+)",
+    re.IGNORECASE,
+)
+
+
+def parse_asd_version(page: str) -> str:
+    """The current ASD version from the version-history page, or 'unknown'."""
+    match = _VERSION.search(page)
+    return match.group(1) if match else "unknown"
+
+
+def asd_version() -> str:
+    try:
+        return parse_asd_version(fetch(VERSION_URL))
+    except Exception as exc:  # noqa: BLE001 - the version is a label, not data
+        print(f"ASD version: could not read ({exc}); recording 'unknown'", file=sys.stderr)
+        return "unknown"
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--species", action="append",
@@ -77,6 +102,8 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     today = dt.date.today().isoformat()
+    version = asd_version()
+    print(f"NIST ASD version {version}")
     failures = 0
     for species in args.species or DEFAULT_SPECIES:
         url = build_query(species, args.low, args.high)
@@ -89,6 +116,7 @@ def main(argv=None) -> int:
         observed = sum(1 for ln in lines if ln.observed)
         path = write_line_file(args.out / species_to_filename(species), species, lines, {
             "source": "NIST Atomic Spectra Database (ASD), https://physics.nist.gov/asd",
+            "asd_version": version,
             "retrieved": today,
             "range_nm": f"{args.low:g}-{args.high:g}",
             "medium": "air (ASD convention, 200-2000 nm)",

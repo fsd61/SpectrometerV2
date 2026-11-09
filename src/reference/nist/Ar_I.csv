@@ -1,5 +1,6 @@
 # species: Ar I
 # source: NIST Atomic Spectra Database (ASD), https://physics.nist.gov/asd
+# asd_version: 5.12
 # retrieved: 2026-11-09
 # range_nm: 500-1100
 # medium: air (ASD convention, 200-2000 nm)
