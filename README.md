@@ -1,5 +1,7 @@
 # SpectrometerV2
 
+![Spectrometer V2, The Doublet Hunter: a scope reticle framing the sodium D doublet at 588.995 and 589.592 nm](Docs/images/doublet-hunter.png)
+
 Calibrated, tested software for DIY diffraction spectrometers, on Raspberry Pi,
 Windows, and Linux. A ground-up modernization of Les Wright's PySpectrometer2.
 
@@ -274,6 +276,11 @@ default. The core schema is locked — capture identity, backend provenance and
 calibration fingerprint are fixed and cannot be overridden — while anything else
 you want to collect is declared in a small INI manifest that applies to both
 stores at once. See `config/user_fields.ini.example`.
+
+![Grafana dashboard fed from InfluxDB: spectral waterfall, calibration status and centroid drift, instantaneous spectrum, Ar I 810/811 nm doublet fit, peak wavelength, FWHM, sensor temperature, and run details](Docs/images/grafana-dashboard.png)
+
+*An example Grafana dashboard built on the InfluxDB telemetry. Illustration with
+simulated data.*
 
 The PySide6 GUI (Phase 7) adds the live view, waterfall, click-to-calibrate, and
 the Analysis panel: extraction band, wavelet denoising, simulated-annealing line
