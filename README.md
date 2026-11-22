@@ -72,7 +72,7 @@ regression tests, and builds a measurement instrument on top of them:
 | Rows of the slit image per sample | 3, rounded to whole counts  | Adjustable up to the whole slit image, fractional: about 11x the signal-to-noise in simulation ([below](#more-signal-from-the-same-frame)) |
 | Line shape                       | Peak position only           | Gaussian fit, FWHM, and signal-to-noise for every line |
 | Line position                    | Whole pixels: about 0.3 px error however strong the line | Fitted: 0.015 px at SNR 100, at the theoretical limit, in simulation ([below](#how-much-the-fitting-gains)) |
-| Overlapping lines                | Split only 1.25 line-widths apart or more (best settings; 5 at its defaults) | Split down to 0.75 line-widths apart by simulated annealing (DiGennaro & Cowburn, 1992) with a least-squares polish, from the GUI ([below](#simulated-annealing-line-fitting)) |
+| Overlapping lines                | Split only 1.25 line-widths apart or more (best settings; 5 at its defaults) | Split down to 0.75 line-widths apart by simulated annealing (DiGennaro & Cowburn, 1992; Cowburn et al., 1991) with a least-squares polish, from the GUI ([below](#simulated-annealing-line-fitting)) |
 | Calibration line centers         | Whole pixels                 | Sub-pixel fitted centers: 38-97% lower calibration error in simulation ([below](#sub-pixel-calibration)) |
 | Noise handling                   | Smoothing only               | Switchable wavelet denoising for a cleaner trace, with line widths and SNR always measured on the raw data ([below](#wavelet-denoising)) |
 | Checking against known answers   | None                         | Built-in signal generator and simulated camera; 404 automated tests |
@@ -119,11 +119,16 @@ trace. In the **Analysis** panel, set *Lines to fit* to 2, press **f**, and
 click the blend: the fit runs in the background and reports each line's center,
 FWHM, and amplitude, in nm once the instrument is calibrated.
 
-The fit uses simulated annealing, adapted from DiGennaro & Cowburn, "Parametric
-Estimation of Time-Domain NMR Signals Using Simulated Annealing", *J. Magn.
-Reson.* 96, 582–588 (1992), to find the lines, then a Levenberg-Marquardt polish
-to pin their centers down. Each does a job the other cannot. Simulated, on a
-doublet 4.4 px apart with 2 counts of noise, 20 trials each:
+The fit uses simulated annealing to find the lines, then a Levenberg-Marquardt
+polish to pin their centers down. Each does a job the other cannot. The
+annealing is adapted from DiGennaro & Cowburn, "Parametric Estimation of
+Time-Domain NMR Signals Using Simulated Annealing", *J. Magn. Reson.* 96,
+582–588 (1992), part of the parametric estimation work also described in
+Cowburn, Glushka, DiGennaro & Rios, "Parametric Estimation in 1-D, 2-D, and 3-D NMR", in
+*Computational Aspects of the Study of Biological Macromolecules by Nuclear
+Magnetic Resonance Spectroscopy*, NATO ASI Series A, vol. 225, 27–38 (Plenum,
+1991). Simulated, on a doublet 4.4 px apart with 2 counts of noise, 20 trials
+each:
 
 | | Annealing alone | Polish alone | Annealing + polish |
 |---|---:|---:|---:|

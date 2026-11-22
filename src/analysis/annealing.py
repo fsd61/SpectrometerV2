@@ -2,8 +2,10 @@
 
 Ported from the original PySpectrometer2 patch material, based on
 DiGennaro & Cowburn, "Parametric Estimation of Time-Domain NMR Signals
-Using Simulated Annealing", J. Magn. Reson. 96, 582-588 (1992), with four
-practical refinements retained from that work:
+Using Simulated Annealing", J. Magn. Reson. 96, 582-588 (1992) (companion
+paper: Cowburn, Glushka, DiGennaro & Rios, "Parametric Estimation in 1-D,
+2-D, and 3-D NMR", NATO ASI Series A vol. 225, 27-38, Plenum, 1991), with
+four practical refinements retained from the J. Magn. Reson. work:
 
 1. Auto-tuned initial temperature ``T0`` targeting ~82% uphill acceptance.
 2. Markov-chain length scaled by the number of spectral components.

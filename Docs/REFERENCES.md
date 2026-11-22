@@ -11,6 +11,14 @@ redistributed here.
 signals using simulated annealing. *Journal of Magnetic Resonance* 96, 582–588
 (1992). A copy is included: [Journal.Mag.Res.96.pdf](Journal.Mag.Res.96.pdf).
 
+**Cowburn, D., Glushka, J., DiGennaro, F. & Rios, C. B.** Parametric estimation
+in 1-D, 2-D, and 3-D NMR. In J. C. Hoch, F. M. Poulsen & C. Redfield (eds.),
+*Computational Aspects of the Study of Biological Macromolecules by Nuclear
+Magnetic Resonance Spectroscopy*, NATO ASI Series A: Life Sciences, vol. 225,
+27–38. Plenum Press, New York (1991). The companion paper on the same group's
+parametric estimation work: extracting line positions and intensities from
+noisy spectra as fitted parameters rather than reading them off the trace.
+
 The basis of `analysis/annealing.py` and the line fitting in
 `analysis/linefit.py`: the auto-tuned starting temperature, Markov chains scaled
 to the number of lines, and the quench to fast final convergence. SpectrometerV2
