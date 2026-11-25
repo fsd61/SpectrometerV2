@@ -8,5 +8,9 @@ adds a time-varying (streaming) source for live/waterfall development.
 
 from .generator import SyntheticSpectrumSpec, generate
 from .stream import SyntheticStream
+from .diffraction import DiffractionSpec, simulate_dial_series, simulate_marks, wall_profile
 
-__all__ = ["SyntheticSpectrumSpec", "generate", "SyntheticStream"]
+__all__ = [
+    "SyntheticSpectrumSpec", "generate", "SyntheticStream",
+    "DiffractionSpec", "simulate_dial_series", "simulate_marks", "wall_profile",
+]

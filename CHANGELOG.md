@@ -22,6 +22,23 @@ the measurement found.
   click. The fit now also starts from the local maxima nearby and keeps the
   lower residual. 3 new tests (404 in all).
 
+### Slit width from laser diffraction (step 1: math and simulator)
+
+- **`calibration/slit.py`** (SLIT-001..004): slit width from pencil-marked
+  dark fringes of a laser shone through the slit onto a wall. Exact geometry,
+  y = y0 + L tan(asin(m lambda / a)), fitted for width and pattern center
+  together, so marks may start from any tape zero and on either or both sides.
+  Reports width with statistical, wavelength and distance sigmas and the
+  small-angle answer for comparison (1.5 % low at 12.7 um / 650 nm / 2 m with
+  orders to +-4). Variable slit: `fit_dial_calibration` fits width against
+  micrometer reading for the mechanical zero and screw scale, weighted by
+  each setting's sigma; `width_at(dial)` refuses at or below the zero.
+- **`synthetic/diffraction.py`** (SYN-010): simulated fringe marks, sinc^2
+  wall profile and variable-slit dial sessions, derived independently of the
+  fit so tests compare two derivations.
+- 39 new tests (443 in all). Simulated bench session (1.5 mm mark scatter,
+  wavelength +-0.3 nm, distance +-2 mm): 12.71 +- 0.03 um for a 12.7 um slit.
+
 ## [2.2.0] — 2026-10-24
 
 Analysis controls in the GUI: the extraction band, wavelet denoising,
