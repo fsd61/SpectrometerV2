@@ -225,8 +225,10 @@ listed with links in [Docs/REFERENCES.md](Docs/REFERENCES.md).
 
 ### Slit width from a laser and a tape measure
 
-The entrance slit sets the resolution, so its real width matters, and a part
-label or a micrometer dial doesn't tell you what it is. Shine a collimated
+The entrance slit sets the resolution, so its real width matters. Most DIY
+builds use a variable slit, often two razor blades or a micrometer-driven jaw,
+and its actual width is anyone's guess; a part label or a dial reading doesn't
+tell you either. Now you can measure it. Shine a collimated
 laser through the slit onto a wall about 2 m away, darken the room, and mark
 the centers of the dark fringes on a strip of paper. Those dark fringes sit
 where a·sin θ = m·λ, so their positions give the width.
@@ -253,6 +255,21 @@ Status: the fit and the simulator (`calibration/slit.py`,
 stamping the width on every capture, the GUI dialog, a `slit` command and the
 Grafana panels are next. Requirements SLIT-001..010; design in the
 Architecture document, section 10.
+
+## Coming soon: the physical build
+
+The software runs today with no hardware at all (see the quick start above).
+The instrument it was written for, Spectrometer V2, is being assembled now:
+2020 aluminum rails, an OV9281 monochrome camera, a 10 µm fixed slit, a
+1200 lines/mm grating on a rotary stage, and an argon calibration lamp. The
+build documentation will be published here once it has seen first light:
+parts list, printable fixtures, assembly, and the laser bench setup for
+measuring the slit.
+
+Also on the way: a companion **irradiance meter**. A spectrometer tells you
+*which* wavelengths are present, not how much light arrives, so light
+intensity (mW/cm²) gets its own instrument. The hardware is designed, and the
+software will be extended to read it and log it alongside the spectrum.
 
 ## Design
 

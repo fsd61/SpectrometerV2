@@ -231,7 +231,8 @@ re-implementation around it, not a replacement of it.
 
 ## Known gaps
 
-- Absolute irradiance is out of scope — this instrument measures wavelength
+- Absolute irradiance is out of scope for the spectrometer (a separate
+  irradiance meter is planned; see BACKLOG) — this instrument measures wavelength
   position only.
 - Hardware test suite (`tests/hardware/`) is empty; hardware verification is
   manual.

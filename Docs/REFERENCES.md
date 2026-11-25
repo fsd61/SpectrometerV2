@@ -2,8 +2,8 @@
 
 Papers behind the analysis methods in SpectrometerV2, with what each one means
 for this code. Links go to the publisher and, where one exists, a free copy
-from the authors or PubMed Central. The papers themselves are not
-redistributed here.
+from the authors or PubMed Central. Copies are included only for the
+author's own papers.
 
 ## Simulated annealing line fitting
 
@@ -18,6 +18,7 @@ Magnetic Resonance Spectroscopy*, NATO ASI Series A: Life Sciences, vol. 225,
 27–38. Plenum Press, New York (1991). The companion paper on the same group's
 parametric estimation work: extracting line positions and intensities from
 noisy spectra as fitted parameters rather than reading them off the trace.
+A copy is included: [NATO.ASI.225.pdf](NATO.ASI.225.pdf).
 
 The basis of `analysis/annealing.py` and the line fitting in
 `analysis/linefit.py`: the auto-tuned starting temperature, Markov chains scaled

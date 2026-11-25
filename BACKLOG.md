@@ -39,6 +39,12 @@ split exists to avoid.
 
 ## Other deferred items
 
+- **Irradiance meter support** - a companion instrument (photodiode +
+  transimpedance amplifier) measures light intensity in mW/cm², which the
+  spectrometer cannot. Hardware designed, not yet built. Software needed: read
+  the meter, record its calibration with every reading, log irradiance (and
+  dose over a session) to CSV / SQLite / InfluxDB beside the spectrum.
+
 - **Synthetic line profiles** — Lorentzian and Voigt (SYN-007 extension points;
   Gaussian is implemented).
 - **Legacy path removal** — retire `Original_Pyspectrometer2/specFunctions.py`

@@ -22,6 +22,14 @@ the measurement found.
   click. The fit now also starts from the local maxima nearby and keeps the
   lower residual. 3 new tests (404 in all).
 
+### Docs
+
+- README: Doublet Hunter banner, Grafana dashboard illustration, a "Coming
+  soon: the physical build" section (build docs after first light, companion
+  irradiance meter), and the NATO ASI companion paper cited beside
+  J. Magn. Reson. 96; a copy is in `Docs/NATO.ASI.225.pdf`. Irradiance meter
+  support added to BACKLOG.
+
 ### Slit width from laser diffraction (step 1: math and simulator)
 
 - **`calibration/slit.py`** (SLIT-001..004): slit width from pencil-marked
