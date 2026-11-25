@@ -332,10 +332,11 @@ calibration fingerprint are fixed and cannot be overridden — while anything el
 you want to collect is declared in a small INI manifest that applies to both
 stores at once. See `config/user_fields.ini.example`.
 
-![Grafana dashboard fed from InfluxDB: spectral waterfall, calibration status and centroid drift, instantaneous spectrum, Ar I 810/811 nm doublet fit, peak wavelength, FWHM, sensor temperature, and run details](Docs/images/grafana-dashboard.png)
+![Grafana dashboard fed from InfluxDB: spectral waterfall, calibration status and centroid drift, instantaneous spectrum, Ar I 810/811 nm doublet fit, peak wavelength, FWHM, sensor temperature, run details, and slit width from laser diffraction](Docs/images/grafana-dashboard.png)
 
 *An example Grafana dashboard built on the InfluxDB telemetry. Illustration with
-simulated data.*
+simulated data. The slit-width row uses the real fit on simulated laser marks
+for a 10 µm slit; logging it to InfluxDB is planned.*
 
 The PySide6 GUI (Phase 7) adds the live view, waterfall, click-to-calibrate, and
 the Analysis panel: extraction band, wavelet denoising, simulated-annealing line
