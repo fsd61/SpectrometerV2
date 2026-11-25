@@ -30,7 +30,7 @@ Windows, and Linux. A ground-up modernization of Les Wright's PySpectrometer2.
   (for Grafana).
 - **Same keys as PySpectrometer2**, and its scientific results are preserved,
   pinned by golden regression tests.
-- **404 automated tests.** Windows, Linux, and Raspberry Pi are all first-class.
+- **443 automated tests.** Windows, Linux, and Raspberry Pi are all first-class.
 
 ## Try it in two minutes, no hardware needed
 
@@ -75,7 +75,8 @@ regression tests, and builds a measurement instrument on top of them:
 | Overlapping lines                | Split only 1.25 line-widths apart or more (best settings; 5 at its defaults) | Split down to 0.75 line-widths apart by simulated annealing (DiGennaro & Cowburn, 1992; Cowburn et al., 1991) with a least-squares polish, from the GUI ([below](#simulated-annealing-line-fitting)) |
 | Calibration line centers         | Whole pixels                 | Sub-pixel fitted centers: 38-97% lower calibration error in simulation ([below](#sub-pixel-calibration)) |
 | Noise handling                   | Smoothing only               | Switchable wavelet denoising for a cleaner trace, with line widths and SNR always measured on the raw data ([below](#wavelet-denoising)) |
-| Checking against known answers   | None                         | Built-in signal generator and simulated camera; 404 automated tests |
+| Slit width                       | Taken from the part label    | Measured from a laser diffraction pattern with a tape measure: 12.71 ± 0.03 µm for a 12.7 µm slit in simulation; finds a variable slit's true zero ([below](#slit-width-from-a-laser-and-a-tape-measure)) |
+| Checking against known answers   | None                         | Built-in signal generator, simulated camera and simulated diffraction; 443 automated tests |
 | Calibration provenance           | None                         | Calibration fingerprint stored with every measurement; simulated data can never pass as real |
 | Data                             | CSV snapshots                | CSV, SQLite with full provenance, InfluxDB for Grafana |
 | Platforms                        | Raspberry Pi and Linux       | Raspberry Pi, Windows, and Linux |
@@ -222,6 +223,37 @@ The papers behind both methods (Daubechies; Donoho & Johnstone; Coifman &
 Donoho; Srivastava, Dzikovski & Freed on wavelet denoising of spectra) are
 listed with links in [Docs/REFERENCES.md](Docs/REFERENCES.md).
 
+### Slit width from a laser and a tape measure
+
+The entrance slit sets the resolution, so its real width matters, and a part
+label or a micrometer dial doesn't tell you what it is. Shine a collimated
+laser through the slit onto a wall about 2 m away, darken the room, and mark
+the centers of the dark fringes on a strip of paper. Those dark fringes sit
+where a·sin θ = m·λ, so their positions give the width.
+
+- **Exact geometry.** The fit uses y = y0 + L·tan(asin(m·λ/a)), not the
+  small-angle shortcut, which reads 1.5% low with fringes out to the 4th order.
+- **No need to find the center.** The fit solves for the width and the
+  pattern center together, so the tape can start anywhere and the marks can be
+  on one side or both.
+- **Honest error bars.** The result comes with its uncertainty, split into
+  mark scatter, laser wavelength and distance. The width scales exactly with
+  the wavelength, so measure the laser with the spectrometer itself rather
+  than trusting the label.
+- **Variable slits.** Measure at a few micrometer settings and the fit gives
+  the true mechanical zero and the screw scale, so a dial reading becomes a
+  real width.
+
+Simulated bench session (12.7 µm slit, 650 nm, 2 m, pencil marks scattered
+±1.5 mm, laser ±0.3 nm, tape ±2 mm): **12.71 ± 0.03 µm**. The small-angle
+shortcut would have said 12.51 µm.
+
+Status: the fit and the simulator (`calibration/slit.py`,
+`synthetic/diffraction.py`) are done and tested. Saving the slit calibration,
+stamping the width on every capture, the GUI dialog, a `slit` command and the
+Grafana panels are next. Requirements SLIT-001..010; design in the
+Architecture document, section 10.
+
 ## Design
 
 SpectrometerV2 is built around **one platform-neutral
@@ -248,9 +280,10 @@ src/                  Application sources (flat layout — no wrapper package)
   cameras/      camera contract + adapters (USB, Pi)   (HW-*)
   acquisition/  frame capture + acquisition metadata
   processing/   spectrum extraction + shared Spectrum object
-  calibration/  wavelength calibration
+  calibration/  wavelength calibration, slit width     (SLIT-*)
   analysis/     peak detection, fitting, FWHM, SNR
-  synthetic/    reproducible synthetic spectra         (SYN-*)
+  synthetic/    reproducible synthetic spectra and
+                single-slit diffraction                (SYN-*)
   data/         persistence: locked core schema, CSV / SQLite / InfluxDB
                 sinks, user field manifest             (DATA-*)
   ui/           GUI + plotting
@@ -291,9 +324,13 @@ The PySide6 GUI (Phase 7) adds the live view, waterfall, click-to-calibrate, and
 the Analysis panel: extraction band, wavelet denoising, simulated-annealing line
 fitting, and the sub-pixel calibration check.
 
+Slit-width calibration from a laser diffraction pattern is under way: the fit,
+its uncertainty and the variable-slit dial calibration are done and tested
+against a diffraction simulator.
+
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
 behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
-404 tests, installable via `pip install -e .`.
+443 tests, installable via `pip install -e .`.
 
 ## Usage
 

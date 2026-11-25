@@ -38,6 +38,15 @@ the measurement found.
   fit so tests compare two derivations.
 - 39 new tests (443 in all). Simulated bench session (1.5 mm mark scatter,
   wavelength +-0.3 nm, distance +-2 mm): 12.71 +- 0.03 um for a 12.7 um slit.
+- Requirements → **Rev 1.9**: new section 11, Slit Width Calibration
+  (SLIT-001..010; 001-004 *Implemented*, 005-010 *Planned*), and SYN-010
+  (synthetic single-slit diffraction, *Implemented*).
+- Architecture → **Rev 2.0**: Slit Width Calibration component (*In
+  Progress*), new section 10 (fit, uncertainty model, dial calibration, data
+  flow, verification, implementation order), section 6 and package structure
+  updated.
+- README: "Slit width from a laser and a tape measure" section, comparison-table
+  row, repository layout and test counts.
 
 ## [2.2.0] — 2026-10-24
 
