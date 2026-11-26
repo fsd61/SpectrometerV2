@@ -4,4 +4,4 @@ This layer wires the shared services (configuration, logging) together and
 dispatches CLI commands. It contains no scientific algorithms.
 """
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"

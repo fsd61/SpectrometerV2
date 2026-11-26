@@ -6,6 +6,8 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-26
+
 Measured what the analysis methods gain over PySpectrometer2, and fixed a gap
 the measurement found.
 
@@ -24,6 +26,7 @@ the measurement found.
 
 ### Docs
 
+- Importable Grafana dashboard for the InfluxDB telemetry sink (InfluxDB 2.x / Flux): `config/grafana/Spectrometer V2 - Grafana dashboard.json`. Live panels use the fields the sink writes today; instrument-health and irradiance panels show "No data" until those fields exist.
 - README: Doublet Hunter banner, Grafana dashboard illustration, a "Coming
   soon: the physical build" section (build docs after first light, companion
   irradiance meter), and the NATO ASI companion paper cited beside
