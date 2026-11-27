@@ -35,9 +35,11 @@ from ui.live import (
     snapshot_spectrum,
 )
 from errors import CalibrationError
+from reference import identify, refine_peak, wavelength_at
 from .analysis_panel import AnalysisDock
 from .controller import CaptureThread, TaskWorker
 from .controls import ControlDock
+from .reference_line_dialog import ReferenceLineDialog
 from .spectrum_view import SpectrumView
 from .synthetic_controls import SyntheticDock
 from .waterfall_view import WaterfallView
@@ -91,6 +93,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._last_peaks: list[int] = []      # peak pixel indices, for click-snap
         self._cal_session = CalibrationSession()
         self._calib_mode = False              # plot clicks add points when True
+        self._ref_species: str | None = None  # last element chosen in the pick dialog
+        self._identify_mode = False           # plot clicks identify lines when True
+        self._last_identified = None          # (wavelength_nm, position_px)
         self._engine: LiveEngine | None = None
         self._actions: dict[str, QtGui.QAction] = {}
         self._status_hold_until = 0.0         # live counter yields to a flashed msg
@@ -128,6 +133,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._analysis.compareRequested.connect(self.act_compare_centroids)
         self._analysis.useFittedToggled.connect(self._set_use_fitted)
         self._analysis.rawOverlayToggled.connect(self._view.set_raw_overlay)
+        self._analysis.identifyModeToggled.connect(self._set_identify_mode)
+        self._analysis.identifySettingsChanged.connect(self._reidentify)
 
         self._build_menu()
         self._build_toolbar()
@@ -197,9 +204,15 @@ class MainWindow(QtWidgets.QMainWindow):
         fit.toggled.connect(self._set_fit_mode)
         clear = self._extra_action("clear_fit", "Clear line fit", "Remove the fitted lines")
         clear.triggered.connect(lambda *_: self.act_clear_fit())
+        identify = self._extra_action("n", "Identify lines (click plot)",
+                                      "Click a peak to list the NIST reference lines near it",
+                                      checkable=True, key="n")
+        identify.toggled.connect(self._set_identify_mode)
         menus["Analysis"].addSeparator()
         for act in (denoise, fit, clear):
             menus["Analysis"].addAction(act)
+        menus["Analysis"].addSeparator()
+        menus["Analysis"].addAction(identify)
 
         self._view_menu = bar.addMenu("&View")
         toggle = self._dock.toggleViewAction()
@@ -244,7 +257,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _show_shortcuts(self) -> None:
         rows = "\n".join(f"  {s.key}   {s.label}" for s in LIVE_SHORTCUTS)
-        added = "\n".join(f"  {k}   {self._extra_actions[k].text()}" for k in ("w", "f"))
+        added = "\n".join(f"  {k}   {self._extra_actions[k].text()}" for k in ("w", "f", "n"))
         QtWidgets.QMessageBox.information(
             self, "Keyboard shortcuts",
             "SpectrometerV2 live keys (from PySpectrometer2):\n\n" + rows
@@ -361,6 +374,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _toggle_pick_mode(self, on: bool) -> None:
         if on and self._fit_mode:
             self._set_fit_mode(False)
+        if on and self._identify_mode:
+            self._set_identify_mode(False)
         self._calib_mode = bool(on)
         self._flash_status(
             "Pick mode ON — click emission lines to add points, then press c."
@@ -371,16 +386,29 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._fit_mode:
             self._fit_at(self._x_to_pixel(x))
             return
+        if self._identify_mode:
+            self._identify_at(x)
+            return
         if not self._calib_mode:
             return
-        pixel = snap_pixel_to_peak(x, self._last_peaks)
-        wavelength, ok = QtWidgets.QInputDialog.getDouble(
-            self, "Calibration point",
-            f"Known wavelength (nm) at pixel {pixel}:",
-            546.0, 0.0, 3000.0, 3,
+        # On a calibrated plot x is in nm; convert before snapping to a peak pixel.
+        pixel = snap_pixel_to_peak(self._x_to_pixel(x), self._last_peaks)
+        wavelength, ok, species = ReferenceLineDialog.get_wavelength(
+            self, pixel, estimate_nm=self._wavelength_at(pixel),
+            species=self._ref_species,
         )
         if ok:
+            self._ref_species = species or self._ref_species
             self._add_calibration_pick(pixel, float(wavelength))
+
+    def _wavelength_at(self, pixel: int) -> float | None:
+        """The current calibration's wavelength at ``pixel``, or None if uncalibrated."""
+        spec = self._last_spectrum
+        if spec is None or len(spec.wavelengths) == 0:
+            return None
+        if 0 <= int(pixel) < len(spec.wavelengths):
+            return float(spec.wavelengths[int(pixel)])
+        return None
 
     def _add_calibration_pick(self, pixel: int, wavelength: float) -> None:
         """Record one (pixel, wavelength) pick. Split out so tests can drive it
@@ -554,10 +582,64 @@ class MainWindow(QtWidgets.QMainWindow):
             act.blockSignals(False)
         self._flash_status(f"Wavelet denoising {'on' if checked else 'off'}.")
 
+    # ------------------------------------------------------------------ #
+    # Line identification against the NIST reference lines (key n)
+    # ------------------------------------------------------------------ #
+    def _set_identify_mode(self, on: bool) -> None:
+        on = bool(on)
+        if on and self._calib_mode:
+            self._pick_action.setChecked(False)
+        if on and self._fit_mode:
+            self._set_fit_mode(False)
+        self._identify_mode = on
+        act = self._extra_actions.get("n")
+        if act is not None and act.isChecked() != on:
+            act.blockSignals(True)
+            act.setChecked(on)
+            act.blockSignals(False)
+        self._analysis.set_identify_mode(on)
+        self._flash_status("Identify mode ON — click a peak on the plot." if on
+                           else "Identify mode off.")
+
+    def _identify_at(self, x: float) -> None:
+        """Identify the peak nearest plot position ``x`` (nm on a calibrated axis)."""
+        spec = self._last_spectrum
+        if spec is None or len(spec.wavelengths) == 0:
+            msg = "Identify needs a calibrated plot. Calibrate first (Calibrate menu)."
+            self._analysis.clear_identification(msg)
+            self._flash_status(msg)
+            return
+        pixel = snap_pixel_to_peak(self._x_to_pixel(x), self._last_peaks)
+        position = refine_peak(spec.intensities, pixel)
+        self._last_identified = (wavelength_at(spec.wavelengths, position), position)
+        self._reidentify()
+
+    def _reidentify(self) -> None:
+        """(Re)list candidates for the last identified peak, e.g. after the
+        element choice or the search width changed."""
+        if self._last_identified is None:
+            return
+        measured, position = self._last_identified
+        candidates = identify(measured, self._analysis.selected_species(),
+                              self._analysis.tolerance_nm)
+        self._analysis.show_identification(measured, position, candidates)
+        if candidates:
+            best = candidates[0]
+            self._flash_status(
+                f"{measured:.2f} nm: nearest {best.species} {best.wavelength_nm:.3f} nm "
+                f"(Δ {best.delta_nm:+.2f} nm)"
+                + (f", {len(candidates) - 1} more in the Analysis panel"
+                   if len(candidates) > 1 else ""))
+        else:
+            self._flash_status(f"{measured:.2f} nm: no reference line within "
+                               f"±{self._analysis.tolerance_nm:g} nm.")
+
     def _set_fit_mode(self, on: bool) -> None:
         on = bool(on)
         if on and self._calib_mode:
             self._pick_action.setChecked(False)
+        if on and self._identify_mode:
+            self._set_identify_mode(False)
         self._fit_mode = on
         act = self._extra_actions.get("f")
         if act is not None and act.isChecked() != on:

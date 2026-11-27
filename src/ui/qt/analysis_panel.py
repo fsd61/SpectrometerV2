@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from PySide6 import QtCore, QtWidgets
 
+from reference import available_species
 from ui.analysis_params import SAFitParams, WaveletParams
 
 _HEIGHT_TIP = (
@@ -63,7 +64,22 @@ _COMPARE_TIP = (
     "fitted centers. Needs 4 or more picked lines."
 )
 
+_IDENTIFY_TIP = (
+    "Click a peak on a calibrated plot to list the NIST reference lines near it "
+    "(key n).\nThe peak's wavelength comes from the current calibration, so a "
+    "poor calibration gives poor matches."
+)
+_TOLERANCE_TIP = (
+    "How far from the peak to look for reference lines.\n"
+    "About 4 pixels (1 nm at 0.27 nm/px) suits a good calibration; widen it if "
+    "the calibration is rough."
+)
+# The FS-2 lamp (argon), fluorescent tubes (mercury), neon indicator lamps and
+# the sodium D lines: the sources this instrument is likely to see.
+_DEFAULT_SPECIES = ("Ar I", "Hg I", "Ne I", "Na I")
+
 _FIT_COLUMNS = ["Line", "Center", "FWHM", "Amplitude"]
+_ID_COLUMNS = ["Element", "Wavelength", "Δ", "Strength"]
 
 
 def _tip(widget, text):
@@ -83,6 +99,8 @@ class AnalysisDock(QtWidgets.QDockWidget):
     compareRequested = QtCore.Signal()
     useFittedToggled = QtCore.Signal(bool)
     rawOverlayToggled = QtCore.Signal(bool)
+    identifyModeToggled = QtCore.Signal(bool)
+    identifySettingsChanged = QtCore.Signal()
 
     def __init__(self, wavelet: WaveletParams, sa: SAFitParams, parent=None,
                  wavelet_available: bool = True):
@@ -97,6 +115,7 @@ class AnalysisDock(QtWidgets.QDockWidget):
         layout.addWidget(self._build_wavelet(wavelet_available))
         layout.addWidget(self._build_fit())
         layout.addWidget(self._build_calibration())
+        layout.addWidget(self._build_identify())
         layout.addStretch(1)
 
         scroll = QtWidgets.QScrollArea()
@@ -402,3 +421,84 @@ class AnalysisDock(QtWidgets.QDockWidget):
         self._use_fitted.blockSignals(True)
         self._use_fitted.setChecked(bool(on))
         self._use_fitted.blockSignals(False)
+
+    # ------------------------------------------------------------------ #
+    # Line identification (NIST reference lines)
+    # ------------------------------------------------------------------ #
+    def _build_identify(self):
+        box = QtWidgets.QGroupBox("Line identification (NIST)")
+        v = QtWidgets.QVBoxLayout(box)
+
+        self._identify_btn = _tip(QtWidgets.QPushButton("Identify lines (click plot)"),
+                                  _IDENTIFY_TIP)
+        self._identify_btn.setCheckable(True)
+        self._identify_btn.toggled.connect(self.identifyModeToggled.emit)
+        v.addWidget(self._identify_btn)
+
+        grid = QtWidgets.QGridLayout()
+        self._species_boxes: dict[str, QtWidgets.QCheckBox] = {}
+        for i, name in enumerate(available_species()):
+            cb = QtWidgets.QCheckBox(name)
+            cb.setChecked(name in _DEFAULT_SPECIES)
+            cb.toggled.connect(lambda *_: self.identifySettingsChanged.emit())
+            self._species_boxes[name] = cb
+            grid.addWidget(cb, i // 4, i % 4)
+        v.addLayout(grid)
+
+        form = QtWidgets.QFormLayout()
+        self._tolerance = _tip(QtWidgets.QDoubleSpinBox(), _TOLERANCE_TIP)
+        self._tolerance.setRange(0.05, 10.0)
+        self._tolerance.setSingleStep(0.25)
+        self._tolerance.setDecimals(2)
+        self._tolerance.setSuffix(" nm")
+        self._tolerance.setValue(1.0)
+        self._tolerance.valueChanged.connect(lambda *_: self.identifySettingsChanged.emit())
+        form.addRow("Search ±", self._tolerance)
+        v.addLayout(form)
+
+        self._id_table = QtWidgets.QTableWidget(0, len(_ID_COLUMNS))
+        self._id_table.setHorizontalHeaderLabels(_ID_COLUMNS)
+        self._id_table.horizontalHeader().setStretchLastSection(True)
+        self._id_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._id_table.verticalHeader().setVisible(False)
+        self._id_table.setMinimumHeight(90)
+        self._id_table.setMaximumHeight(170)
+        v.addWidget(self._id_table)
+        self._id_summary = QtWidgets.QLabel("Click a peak in Identify mode.")
+        self._id_summary.setWordWrap(True)
+        v.addWidget(self._id_summary)
+        return box
+
+    def selected_species(self) -> list[str]:
+        return [name for name, cb in self._species_boxes.items() if cb.isChecked()]
+
+    @property
+    def tolerance_nm(self) -> float:
+        return float(self._tolerance.value())
+
+    def set_identify_mode(self, on: bool) -> None:
+        self._identify_btn.blockSignals(True)
+        self._identify_btn.setChecked(bool(on))
+        self._identify_btn.blockSignals(False)
+
+    def show_identification(self, measured_nm: float, position_px: float, candidates) -> None:
+        self._id_table.setRowCount(len(candidates))
+        for r, c in enumerate(candidates):
+            values = [c.species, f"{c.wavelength_nm:.3f} nm", f"{c.delta_nm:+.2f} nm",
+                      c.strength or "—"]
+            for col, text in enumerate(values):
+                self._id_table.setItem(r, col, QtWidgets.QTableWidgetItem(text))
+        self._id_table.resizeColumnsToContents()
+        head = f"Peak at {measured_nm:.2f} nm (pixel {position_px:.1f})."
+        if not self.selected_species():
+            self._id_summary.setText(head + " Tick at least one element.")
+        elif not candidates:
+            self._id_summary.setText(
+                head + f" No {', '.join(self.selected_species())} line within "
+                f"±{self.tolerance_nm:g} nm.")
+        else:
+            self._id_summary.setText(head + " Nearest first; Δ = reference minus measured.")
+
+    def clear_identification(self, message: str = "Click a peak in Identify mode.") -> None:
+        self._id_table.setRowCount(0)
+        self._id_summary.setText(message)

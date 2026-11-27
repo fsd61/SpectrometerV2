@@ -17,7 +17,7 @@ Windows, and Linux. A ground-up modernization of Les Wright's PySpectrometer2.
   points), with the calibration recorded alongside every measurement.
 - **Line analysis:** Savitzky-Golay smoothing, Gaussian peak fits, FWHM, and SNR.
 - **More signal from the same frame:** average the whole slit image instead of
-  3 rows, for up to about 10x the signal-to-noise of PySpectrometer2
+  3 rows, for up to about 11x the signal-to-noise of PySpectrometer2
   ([details](#more-signal-from-the-same-frame)).
 - **Overlapping lines split, sub-pixel line centers:** simulated annealing line
   fitting in the GUI, and calibrations built from fitted centers rather than
@@ -348,7 +348,7 @@ against a diffraction simulator.
 
 A golden + ground-truth regression suite (`tests/regression/`) pins the baseline
 behavior and proves the extracted modules equivalent (Phases 1, 3, 4, 5, 6 & 8). Test suite:
-443 tests, installable via `pip install -e .`.
+464 tests, installable via `pip install -e .`.
 
 ## Usage
 

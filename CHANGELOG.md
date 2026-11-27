@@ -6,6 +6,49 @@ Requirement IDs (e.g. `CFG-001`) refer to the engineering documents in `Docs/`.
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-26
+
+NIST reference lines: pick calibration lines from a list and identify
+unknown peaks against the NIST Atomic Spectra Database.
+
+### NIST reference lines, step 1: calibration pick list
+
+- **`reference` package + `src/reference/nist/*.csv`**: emission line lists
+  from the NIST Atomic Spectra Database for Ar I, Hg I, Ne I, Na I, Kr I, Xe I
+  and He I, 500-1100 nm, air wavelengths (Ritz when given, else observed). Each
+  file records its source, retrieval date and the exact query. The application
+  only reads these files; it never contacts NIST at run time.
+- **`scripts/fetch_nist_lines.py`**: refreshes or adds line lists from ASD.
+  Run by hand, review the diff, commit.
+- **Calibration point dialog**: clicking a line in pick mode now offers a list
+  of reference lines (element chooser, argon first) instead of a blank number
+  box. Strongest lines first; once calibrated, the lines nearest the clicked
+  pixel come first with their distance. A picked line keeps NIST's full
+  precision; typing a value still works.
+- **Fixed:** in pick mode on an already calibrated plot, the click position
+  (in nm) was used as a pixel index, so recalibrating picked the wrong pixel.
+  It is now converted to a pixel first, as line fitting already did.
+  11 new tests (415 in all).
+
+### NIST reference lines, step 2: identify lines
+
+- **Identify lines mode** (Analysis menu or panel, key `n`): click a peak on a
+  calibrated plot and the Analysis panel lists the reference lines within a
+  set distance (default ±1 nm), nearest first, with element, wavelength,
+  Δ (reference minus measured) and strength; the nearest also shows in the
+  status bar. Element checkboxes choose what to search (Ar, Hg, Ne and Na by
+  default); changing them or the distance re-lists the last peak at once.
+  The peak's position is refined to sub-pixel (parabola through the top three
+  samples) before it is read off the calibration. Identify, fit and
+  calibration-pick modes are mutually exclusive.
+- **`reference.identify`**: the Qt-free core (`identify`, `refine_peak`,
+  `wavelength_at`).
+- **ASD version stamp**: the fetch script records the database version (now
+  5.12) in each line file's header. Refetching changed no line data.
+  10 new tests (425 in all).
+
+Merged with 2.3.0: 21 NIST tests in all, 464 tests in the suite.
+
 ## [2.3.0] - 2026-11-26
 
 Measured what the analysis methods gain over PySpectrometer2, and fixed a gap

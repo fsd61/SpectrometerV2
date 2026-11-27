@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spectrometerv2"
-version = "2.3.0"
+version = "2.4.0"
 description = "Modular, cross-platform scientific spectrometer application."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -35,6 +35,10 @@ py-modules = ["errors", "logging_setup"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# NIST reference line lists read at run time by reference.lines.
+[tool.setuptools.package-data]
+reference = ["nist/*.csv"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
